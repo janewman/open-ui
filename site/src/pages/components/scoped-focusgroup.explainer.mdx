@@ -478,7 +478,7 @@ sequentially among all the focusgroup items using the arrow keys (up/right moves
 down/left moves focus backwards assuming the `<p>` element has `writing-mode` `horizontal-tb` and
 `direction` `ltr`).
 
-Note that only the elements with `id=one` and `id=three` can be focused using the Tab key. The element with `id=two` has `tabindex="-1"`, which takes it out of sequential focus navigation ordering.
+Note that only the element with `id=one` can be focused using the Tab key. Because it is the first sequentially focusable element in the focusgroup, it becomes the single tab stop for the segment, following the rule that each focusgroup segment has exactly one tab stop.
 
 ### Focusgroup segments
 
@@ -547,9 +547,7 @@ the first `<button>` because:
 At this point, the user can use the arrow keys to move from the beginning of the toolbar to the end,
 or press tab again to move outside of the focusgroup.
 
-Note that even if multiple descendants are naturally tabbable (e.g., several `<button>`s without `tabindex`),
-`focusgroup` still collapses the group to a single sequential entry point per segment.
-Authors do NOT need to manually set `tabindex="-1"` on every non-active item to gain roving behavior.
+Note that even if multiple descendants are naturally tabbable (e.g., several `<button>`s without an explicit `tabindex` attribute), `focusgroup` still collapses the group to a single sequential entry point per segment. Authors do NOT need to manually set `tabindex="-1"` on every non-active item to gain roving behavior.
 
 Example:
 
@@ -975,14 +973,19 @@ When a user navigates into a focusgroup using Tab or Shift+Tab, the user agent m
 
 #### 3. **Apply focus priority (first match wins):**
   - If the focusgroup has a **last focused item** and the [`no-memory`](#disabling-focusgroup-memory) token is not present, and the last focused item is within the current segment, focus that item.
-   - Otherwise, if an item within the segment is **sequentially focusable** (e.g., has `tabindex="0"` or is a natively focusable element like `<button>`), focus the first such item in tree order (regardless of direction).
-   - Otherwise, if direction is "forward", focus the **first** focusable `focusgroup` item in the segment in tree order (including elements with negative `tabindex` values).
-   - Otherwise, if direction is "backward", focus the **last** focusable `focusgroup` item in the segment in tree order (including elements with negative `tabindex` values).
+  - Otherwise, if navigating **forward**:
+    - Focus the **first** item in the segment that is sequentially focusable (natively focusable or `tabindex >= 0`).
+    - If no such item exists, focus the **first** focusable item in the segment (including those with a negative `tabindex`).
+  - Otherwise (if navigating **backward**):
+    - Focus the **last** item in the segment that is sequentially focusable (natively focusable or `tabindex >= 0`).
+    - If no such item exists, focus the **last** focusable item in the segment (including those with a negative `tabindex`).
 
-#### 4. **Update tab navigation:**
+#### 4. **Update Sequential Focus Navigation:**
 All other `focusgroup` items are not considered in sequential focus navigation order. Memory is updated to be on the newly focused item if the [`no-memory`](#disabling-focusgroup-memory) token is not present.
 ____
 This algorithm ensures that each [focusgroup segment](#focusgroup-segments) has a single [guaranteed tab stop](#guaranteed-tab-stop), without the need for authors to manage `tabindex` values except to customize the first focused element when entering a `focusgroup`.
+
+**Note on `tabindex > 0`**: While the algorithm respects a non-negative `tabindex` (`>=0`), the use of a positive `tabindex` is strongly discouraged as it disrupts the natural tab order of the page. Within a focusgroup, a positive `tabindex` is treated no differently than `tabindex="0"`.
 
 Additionally, when focus is within [native key conflict elements](#key-conflict-elements), immediate
 neighboring focusgroup items are automatically made available in the tab order to provide an
