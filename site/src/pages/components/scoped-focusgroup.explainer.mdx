@@ -6,9 +6,9 @@ layout: ../../layouts/ComponentLayout.astro
 ---
 
  - Authors: [Jacques Newman](https://github.com/janewman)
- - Prior Authors from the earlier, broader [focusgroup explainer](/components/focusgroup.explainer): [Travis Leithead](https://github.com/travisleithead), [David Zearing](https://github.com/dzearing), [Chris Holt](https://github.com/chrisdholt)
+ - Prior Authors from the earlier, broader [focusgroup explainer](https://github.com/openui/open-ui/blob/fdd348a/site/src/pages/components/focusgroup.explainer.mdx): [Travis Leithead](https://github.com/travisleithead), [David Zearing](https://github.com/dzearing), [Chris Holt](https://github.com/chrisdholt)
  - WHATWG issue: https://github.com/whatwg/html/issues/11641
- - Last updated: 2026-3-25
+ - Last updated: 2026-4-8
 
 ## Table of contents
 <details>
@@ -64,6 +64,7 @@ layout: ../../layouts/ComponentLayout.astro
 - [(Future consideration) Additional keyboard support](#future-consideration-additional-keyboard-support)- [Authoring guidance](#authoring-guidance)
 - [Alternatives considered](#alternatives-considered)
 - [Open questions](#open-questions)
+- [Polyfilling](#polyfilling)
 - [Privacy and security considerations](#privacy-and-security-considerations)
   - [Privacy](#privacy)
   - [Security](#security)
@@ -176,7 +177,7 @@ Specifying a specific item as the [start element](#the-focusgroupstart-attribute
 | [`none`](#opting-out) | Standalone | Opt-out: exclude element and its subtree from ancestor focusgroup. Cannot be combined with any other token. |
 
 ## Major differences from the original explainer
-[Original focusgroup explainer](/components/focusgroup.explainer).
+This proposal narrows the scope of the [original focusgroup explainer](https://github.com/openui/open-ui/blob/fdd348a/site/src/pages/components/focusgroup.explainer.mdx).
 
 ### CSS support is now a future consideration
 Applying `focusgroup` (and related behaviors) via CSS is out of scope for this explainer and deferred for a possible, backwards-compatible future addition.
@@ -1451,6 +1452,17 @@ approaches were considered.
 7. **Keep or drop child role inference (or defer as future consideration):** Should v1 exclude automatic child role assignment entirely to reduce complexity
       and perceived overreach (keeping only container pattern + navigation)? Rationale for revisiting: reviewer concern about mixing semantics and behavior;
       authors can still supply explicit roles; deferring would let us ship navigation sooner and gather data on real author pain before standardizing inference.
+
+## Polyfilling
+
+A polyfill has been written which implements the behaviors described by this explainer.
+
+The polyfill is available on GitHub and npm:
+
+- https://github.com/microsoft/polyfills/tree/main/packages/focusgroup
+- https://www.npmjs.com/package/@microsoft/focusgroup-polyfill
+
+Patches are welcome!
 
 ## Privacy and security considerations
 
