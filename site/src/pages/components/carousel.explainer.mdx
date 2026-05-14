@@ -1,0 +1,298 @@
+---
+menu: Active Proposals
+name: Carousel (Explainer)
+path: /components/carousel.explainer
+pathToResearch: /components/carousel.research
+layout: ../../layouts/ComponentLayout.astro
+---
+
+- Authors: [@janewman](https://github.com/janewman)
+- Last updated: 2026-5-14
+- Issues:
+  - [openui/open-ui#405](https://github.com/openui/open-ui/issues/405) (Request to explore carousels)
+  - [w3c/aria#1617](https://github.com/w3c/aria/issues/1617) (role="carousel" discussion)
+  - [w3c/csswg-drafts#9745](https://github.com/w3c/csswg-drafts/issues/9745) (Enabling carousel design patterns in CSS)
+- Related work: [flackr/carousel](https://github.com/flackr/carousel)
+
+{/* START doctoc generated TOC please keep comment here to allow auto update */}
+{/* DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE */}
+
+## Table of Contents
+
+- [User-facing problem](#user-facing-problem)
+- [How carousels are built today](#how-carousels-are-built-today)
+- [The `<carousel>` element](#the-carousel-element)
+- [Practical use cases](#practical-use-cases)
+- [Accessibility, i18n, privacy, and security considerations](#accessibility-i18n-privacy-and-security-considerations)
+- [Future, backwards-compatible additions](#future-backwards-compatible-additions)
+- [Alternatives considered](#alternatives-considered)
+- [Open design questions](#open-design-questions)
+- [References and acknowledgements](#references-and-acknowledgements)
+
+{/* END doctoc */}
+
+## User-facing problem
+
+Carousels are one of the most deployed interactive patterns on the web — and one of the most inconsistent. As @flackr noted at TPAC 2024: "if you look up 'should I use a carousel', the common answer is no."
+
+The harms start with keyboard divergence. Every library invents its own model — some use Arrow keys, others Tab, many trap focus or let it reach invisible **slides**. Users learn one site's carousel and re-learn the next.
+
+Screen readers announce carousels inconsistently; as @gmjellin reported in [ARIA #1617](https://github.com/w3c/aria/issues/1617): "We have done pretty extensive user testing with that pattern and all of our users had difficulty navigating." Today a single slide requires `role="group"`, `aria-roledescription="slide"`, and a meaningful `aria-label` — multiplied across every slide. The platform should supply this boilerplate automatically. Focus traps and lost-place-on-resize bugs persist because each library reimplements scroll-snap focus management independently.
+
+CSS carousels ([CSS Overflow Level 5](https://drafts.csswg.org/css-overflow-5/)) solve layout, but `::scroll-marker` pseudo-elements have no mechanism for accessible names — see [ARIA #2496](https://github.com/w3c/aria/issues/2496). Without a native element, that gap has no fix.
+
+Autoplay introduces additional harms that merit their own design work. This proposal defers autoplay to a [future additive layer](#future-backwards-compatible-additions) and focuses on the gallery pattern, where the platform can deliver the most consensus with the least controversy.
+
+## How carousels are built today
+
+### Hand-rolled and library carousels
+Most carousels ship as JavaScript libraries, each with its own ARIA mapping, keyboard model, and autoplay behavior, making accessibility opt-in.
+
+### The APG carousel pattern
+The [APG Carousel pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/) defines a reference contract — `role="group"` slides, `aria-roledescription="slide"`, and an AT interaction model. It is a recipe, not a primitive; authors must assemble a dozen attributes, and most do not.
+
+### CSS carousels
+[CSS Overflow Level 5](https://drafts.csswg.org/css-overflow-5/) introduces `::scroll-marker-group`, `::scroll-marker`, and `::scroll-button()`, available in Chrome 135. These provide layout and scroll behavior but no implicit ARIA roles, keyboard model, or autoplay management. As [ARIA #2496](https://github.com/w3c/aria/issues/2496) observes: "there is no formal CSS AAM."
+
+### Framework custom elements
+Frameworks offer `<my-carousel>` custom elements, each with its own role mapping and keyboard contract and no cross-framework AT guarantee.
+
+## The `<carousel>` element
+
+### Minimal example
+
+```html
+<carousel aria-label="Product images">
+  <figure><img src="shoe-1.jpg" alt="Running shoe, side view"></figure>
+  <figure><img src="shoe-2.jpg" alt="Running shoe, top view"></figure>
+  <figure><img src="shoe-3.jpg" alt="Running shoe, sole"></figure>
+</carousel>
+```
+
+**What to notice:**
+- Only `aria-label` is needed — slide roles, counting labels, and controls are all implicit. The carousel is accessible by default.
+- Indicators and prev/next buttons come from CSS pseudo-elements.
+- The user agent applies implicit ARIA roles, keyboard navigation, and focus management automatically.
+
+### Anatomy
+`<carousel>` is **flow content**. A **slide** is any direct element child that is a flow content container: `<article>`, `<aside>`, `<blockquote>`, `<details>`, `<div>`, `<figure>`, `<footer>`, `<form>`, `<header>`, `<nav>`, `<section>`, or a wrapping list (`<ul>`, `<ol>` — the list itself is one slide). Autonomous custom elements (e.g., `<my-slide>`) that contain flow content are also valid slides. Customized built-in elements inherit slide eligibility from their base element.
+
+Direct children that are replaced elements (`<img>`, `<video>`, `<canvas>`, etc.) or interactive elements (`<button>`, `<input>`, `<a>`, etc.) are carousel content but not **slides** — they keep their native semantics, receive no `role="group"`, no auto-label, and are excluded from slide navigation. Authors should wrap them in a container for full slide semantics.
+
+`<script>`, `<style>`, and `<template>` children are never slides. The parser ignores whitespace, text, and comment nodes between slides (like `<select>` ignoring whitespace between `<option>`s).
+
+Indicators are `::scroll-marker-group` / `::scroll-marker`; prev/next controls are `::scroll-button(prev)` / `::scroll-button(next)`, per [CSS Overflow Level 5](https://drafts.csswg.org/css-overflow-5/). These pseudo-elements, along with any non-slide direct children (controls, captions, decorative elements), are carousel content but not slides.
+
+Non-slide direct children (e.g., a `<button commandfor>` placed inside `<carousel>`) retain their native sequential focus participation. They are reachable via Tab independent of the carousel's single tab stop on the current slide.
+
+A slide is **navigable** when it is connected, its computed `display` is not `none`, and its computed `visibility` is not `hidden`. The set of navigable slides — the **navigable subset** — is what the `next`/`previous`/`goto-slide` commands, the current-slide cursor, and the auto-generated "N of M" label operate on. The user agent suppresses snap points for slides outside the navigable subset, so navigation reliably skips them.
+
+Like any element with a roledescription, `<carousel>` is most useful to assistive-technology users when it has an accessible name. The accessible name follows the standard [accname-1.2](https://www.w3.org/TR/accname-1.2/) computation — `aria-labelledby`, then `aria-label`, then content-based methods. Authors commonly supply the name via `aria-labelledby` pointing at an existing heading or via `aria-label` on the element directly; an unlabeled `<carousel>` is valid (the same way an unlabeled `<section>` is) and degrades to AT announcing "carousel" without further context. See [§Accessibility](#accessibility-i18n-privacy-and-security-considerations) for recommended labeling patterns.
+
+### Implicit ARIA
+
+| Element / pseudo | Implicit role | `aria-roledescription` | Other |
+|---------|--------------|------------------------|-------|
+| `<carousel>` | `group` | `"carousel"` | Accessible name resolved per [accname-1.2](https://www.w3.org/TR/accname-1.2/) (`aria-labelledby`, `aria-label`, content-based methods). A name is recommended but not required — unlabeled carousels are valid (like unlabeled `<section>`s). When a name is provided, it should not include the word "carousel" |
+| Each slide child | `group` | `"slide"` | Auto-generated label: "_N_ of _M_" (localizable), where _M_ is the size of the navigable subset and _N_ is the slide's 1-based position within it; author-provided `aria-label` or `aria-labelledby` overrides; label should not include the word "slide" |
+| `::scroll-marker` | Per [CSS Overflow L5](https://drafts.csswg.org/css-overflow-5/) mode | — | Accessible name resolved per [accname-1.2](https://www.w3.org/TR/accname-1.2/): first from `aria-label`/`aria-labelledby`, then from content (`<img alt>`, `<figcaption>`, heading text), then fallback "Slide _N_" (1-based). Pattern: "Go to _slide accessible name_" or fallback "Go to slide _N_" (or locale equivalent). In `links` mode the current marker receives `aria-current="true"`; in `tabs` mode the current marker receives `aria-selected="true"` |
+| `::scroll-button(prev)` | `button` | — | UA-generated name: "Previous slide" (or locale equivalent); receives `aria-disabled="true"` when the carousel is at the first slide of the navigable subset |
+| `::scroll-button(next)` | `button` | — | UA-generated name: "Next slide" (or locale equivalent); receives `aria-disabled="true"` when the carousel is at the last slide of the navigable subset |
+
+The `<carousel>` element uses `role="group"` rather than `role="region"` by default, avoiding landmark proliferation. Authors who want the carousel to be a landmark may add `role="region"` explicitly. This follows the [APG Carousel pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/), which recommends choosing between `group` and `region` based on page information architecture.
+
+The slide role overrides the child element's native implicit role. A `<nav>` used as a slide is announced as a slide, not a navigation landmark.
+
+The rendered current slide carries implicit `aria-live="polite"`. When the current slide changes, assistive technology announces the new slide's accessible name without requiring focus to move. User agents suppress the live-region announcement when keyboard navigation simultaneously moves focus to the new slide, avoiding duplicate announcements.
+
+When the current slide changes without focus movement, the user agent updates the live-region content to the new slide's accessible name. This produces a polite assistive-technology announcement equivalent to manually changing a node inside an `aria-live="polite"` region.
+
+User agents MUST render `::scroll-marker` and `::scroll-button()` pseudo-elements visibly in Forced Colors mode. Meaningful author-provided slide labels yield better marker names than the positional fallback.
+
+### Keyboard and focus model
+
+The user agent internally tracks the **current slide** — the navigable slide nearest the scroll-snap-alignment point. When `scroll-snap-type` is `none`, the user agent determines the current slide after `scrollend`. If the current slide leaves the navigable subset (DOM removal, `display: none`, or `visibility: hidden`), the user agent selects the next navigable slide (or previous if last; or `null` if empty). When the slide that currently holds focus leaves the navigable subset, the user agent moves focus to the new current slide.
+
+The `<carousel>` element is implicitly a focusgroup using a new `carousel` behavior token registered in the [focusgroup explainer](/components/scoped-focusgroup.explainer). The token provides: single tab stop via roving tabindex (managed by the user agent without mutating content attributes), inline-axis arrow-key navigation following writing mode, Home/End to first/last slide, no wrap, and memory (re-entering restores the last-focused slide). Tab from the current slide proceeds into its focusable descendants via standard sequential focus navigation, exiting the carousel after the last one.
+
+Arrow-key navigation triggers a scroll-snap settle; the user agent updates the current slide once the new slide reaches its snap-rest position. If the author overrides `scroll-snap-type` to `none`, the user agent determines the current slide after `scrollend` rather than at a snap-rest position.
+
+For `commandfor` button activations, focus remains on the button and assistive technology hears the new slide via the `aria-live` announcement on the current slide. When the slide that currently holds focus leaves the navigable subset, the user agent moves focus to the new current slide.
+
+### Composition with CSS carousels
+Switching from a CSS-only carousel to `<carousel>` requires changing one element name:
+```html
+<!-- Before: manual ARIA -->
+<section role="region" aria-roledescription="carousel" aria-label="News">
+  <div role="group" aria-roledescription="slide" aria-label="1 of 3">…</div>
+  <div role="group" aria-roledescription="slide" aria-label="2 of 3">…</div>
+</section>
+<!-- After: implicit semantics -->
+<carousel aria-label="News">
+  <div>…</div>
+  <div>…</div>
+</carousel>
+```
+
+**Note**: the implicit role changes from `region` to `group`. Add `role="region"` if landmark status is required for the page's information architecture.
+
+**What to notice:**
+- Container `role`/`aria-roledescription`/`aria-label` plus per-slide `role`/`aria-roledescription`/`aria-label` boilerplate become implicit. CSS pseudo-element styles apply unchanged.
+
+### Author-provided controls via `commandfor`
+When authors need real DOM buttons, they use `commandfor`:
+```html
+<carousel id="gallery" aria-label="Featured">
+  <section aria-label="Spring sale">…</section>
+  <section aria-label="New arrivals">…</section>
+</carousel>
+<button commandfor="gallery" command="previous">←</button>
+<button commandfor="gallery" command="next">→</button>
+<button commandfor="gallery" command="goto-slide" value="0">First</button>
+```
+
+**What to notice:**
+- Buttons can appear anywhere in the DOM; no JavaScript required.
+- These commands are defined by `<carousel>` as part of its element-specific built-in command behavior, parallel to how `<dialog>` defines `show-modal` and `close`. They do not use the `--`-prefix custom-command syntax. See the [Invoker Commands explainer](/components/invokers.explainer) for the full command model.
+- The `value` attribute serves double duty as both the form-submission value and the command parameter. For `goto-slide`, it is interpreted as the command parameter.
+
+| Command | Behavior | `value` parameter |
+|---------|----------|-------------------|
+| `next` | Advances one slide within the navigable subset; no-op at last navigable slide | (none) |
+| `previous` | Retreats one slide within the navigable subset; no-op at first navigable slide | (none) |
+| `goto-slide` | Jumps to the slide at the given 0-based index among slide children in DOM order, if navigable | Required: 0-based integer string parsed per HTML integer parsing rules; non-integer, out-of-range, or non-navigable values are a no-op |
+
+`goto-slide` silently no-ops on invalid input because declarative HTML attributes cannot surface exceptions. If `commandfor` references a non-existent element, the command is silently ignored per the [Invoker Commands](/components/invokers.explainer) model.
+
+**Event: `slidechange`.** A plain `Event` (bubbles: true, composed: false, cancelable: false) fires on the carousel after the current slide changes and reaches its rest position. `slidechange` fires after the `scrollend` event. It fires when the current slide changes due to: scroll-snap settle, keyboard navigation, `commandfor` activation, programmatic scroll (e.g., `Element.scrollTo`), or DOM mutation that removes or hides the current slide. It does NOT fire on initial `<carousel>` connection. The user agent coalesces rapid navigations — only the final rest position fires `slidechange`. Authors can listen for analytics, deep-linking, or syncing external UI. The event has no payload in v1; a typed `CarouselSlideChangeEvent` with `slide`/`index`/`previousSlide`/`previousIndex` is deferred to a future addition.
+
+### Progressive enhancement
+A bare `<carousel>` works without JavaScript: implicit ARIA, scroll-snap navigation, keyboard navigation via the focusgroup `carousel` token, `commandfor` controls, and pseudo-control affordances are all declarative. The user agent stylesheet sets `display: flex`, `overflow-inline: auto`, `scroll-snap-type: inline mandatory`, and `scroll-snap-align: start` on slide children. The `slidechange` event fires when the current slide changes; listening to it requires JavaScript but is the only JS-dependent feature in v1.
+
+## Practical use cases
+
+### Product gallery with thumbnail strip
+```html
+<carousel id="main" aria-label="Product photos">
+  <figure><img src="product-1.jpg" alt="Front view"></figure>
+  <figure><img src="product-2.jpg" alt="Side view"></figure>
+</carousel>
+```
+
+**What to notice:**
+- Linking a thumbnail strip to the main carousel is an [open question](#open-design-questions).
+
+### Photo gallery with author buttons
+```html
+<carousel id="photos" aria-label="Photo gallery">
+  <figure><img src="a.jpg" alt="Sunset over the lake"></figure>
+  <figure><img src="b.jpg" alt="Mountain trail at dawn"></figure>
+</carousel>
+<button commandfor="photos" command="previous">←</button>
+<button commandfor="photos" command="next">→</button>
+```
+
+**What to notice:**
+- Author-provided prev/next buttons sit outside `<carousel>` and use `commandfor` to target it.
+
+## Accessibility, i18n, privacy, and security considerations
+
+### Accessibility
+The `<carousel>` element provides implicit ARIA semantics matching the [APG Carousel pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/). Keyboard navigation follows the roving-tabindex model described above. AT announces slide changes via the implicit `aria-live="polite"` region on the current slide — keyboard navigation moves focus (triggering the screen reader's focus-change announcement), while `commandfor` activations and programmatic scrolls rely on the live-region update.
+
+A carousel is most useful to assistive-technology users when it has an accessible name, but the first rule of ARIA applies: authors should not add `aria-label` when native HTML or existing ARIA mechanisms already provide naming. Recommended patterns, in order of preference:
+
+```html
+<!-- aria-labelledby pointing to an existing heading -->
+<h2 id="featured-h">Featured products</h2>
+<carousel aria-labelledby="featured-h">…</carousel>
+
+<!-- aria-label when no nearby heading exists -->
+<carousel aria-label="Product photos">…</carousel>
+
+<!-- Inside a labeled figure: the figure's figcaption labels the figure;
+     no additional label on the carousel is needed -->
+<figure>
+  <figcaption>Photos from our trip to Iceland</figcaption>
+  <carousel>…</carousel>
+</figure>
+```
+
+Authors should not include the word "carousel" or "slide" in `aria-label` values — those words are already conveyed by `aria-roledescription` and would produce redundant AT announcements (e.g., "carousel, Featured carousel").
+
+User agents should honor `prefers-reduced-motion` by setting `scroll-behavior: auto` on `<carousel>` when the preference is active, suppressing smooth-scroll animations. See [ARIA #2496](https://github.com/w3c/aria/issues/2496) for the CSS AAM gap motivating built-in mappings.
+
+### Internationalization
+RTL contexts flip inline navigation automatically (inherited from `focusgroup`). Vertical writing modes use the inline axis for both CSS `scroll-snap-type` and arrow-key navigation — the logical-property UA stylesheet adapts automatically, so vertical-writing-mode carousels work without authors changing anything. User agents localize auto-generated slide labels (e.g., "_N_ of _M_"), respecting the document's locale for numeral system and text direction.
+
+### Privacy
+No new privacy surface. The element does not access sensors, network resources, or user data.
+
+### Security
+No new security surface. The element does not load cross-origin resources or escalate privileges. `commandfor` reuses the [Invoker Commands](/components/invokers.explainer) security model.
+
+## Future, backwards-compatible additions
+
+This proposal ships gallery semantics first. Each item below is out of scope for v1; each will land additively in future explainers, preserving the markup contract established here.
+
+* **Slideshow mode** (`mode="slideshow"`): auto-rotation of one visible slide at a time, with an autoplay state machine, `aria-live` announcement of slide changes, `inert` off-screen slides, and a [WCAG 2.2.2](https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html)-conformant pause control. Slideshow autoplay is the more controversial carousel pattern (see [w3c/aria#1617](https://github.com/w3c/aria/issues/1617)); shipping the lower-risk gallery layer first lets the platform build consensus on autoplay separately.
+* **`autoplay` attribute and `paused` IDL property**: paired with slideshow mode.
+* **`commandfor` commands for autoplay control** (`pause`, `play`, `toggle-autoplay`): paired with slideshow mode.
+* **Cancelable `slidewillchange` event**: enables "are you sure?" navigation patterns. The event ordering and cancellation contracts need implementer feedback before standardization.
+* **JavaScript API for programmatic navigation and observation**: `carousel.slides` (live `HTMLCollection`), `carousel.currentSlide`, `carousel.currentIndex`, `carousel.goTo(index)`, `carousel.next()`, `carousel.previous()`. These methods scroll without moving focus; assistive technology is notified via the `aria-live` announcement.
+* **Typed `CarouselSlideChangeEvent`**: upgrades the v1 plain `slidechange` event with readonly `slide`, `index`, `previousSlide`, and `previousIndex` properties. Existing `slidechange` listeners continue to work.
+
+Each addition is purely additive: existing v1 `<carousel>` markup continues to work unchanged when these land.
+
+## Alternatives considered
+
+### Status quo (libraries only)
+Every library invents its own keyboard model and ARIA mapping. User testing ([ARIA #1617](https://github.com/w3c/aria/issues/1617)) shows consistent navigation failures.
+
+### CSS carousels alone
+CSS carousels deliver layout and scroll behavior. A future CSS AAM could close the marker-name gap, but it would not deliver the `slidechange` observability hook, declarative `commandfor` integration, the `focusgroup`-pattern registration, automatic accessibility (label fallback + slide counting + roledescription + roving tabindex), or the typed event interface that future additions will provide. A native element provides all of these as a coherent package.
+
+### Combined CSS carousels + `focusgroup` + manual ARIA
+Authors could combine CSS Overflow Level 5, `focusgroup`, a hypothetical CSS AAM, and manual ARIA attributes. This requires N+3 pieces of authoring contract per carousel instance — CSS for layout, `focusgroup` for keyboard, ARIA for semantics, and per-slide labeling — versus one `<carousel>` element. It does not deliver `commandfor` integration, provides no `slidechange` event for analytics or deep-linking, no automatic label fallback, and authors must still know and apply the full ARIA attribute set correctly.
+
+### `<section>` with `focusgroup` attribute
+The `focusgroup` attribute provides keyboard navigation, but it does not carry semantic role assignment, automatic slide counting and labeling, marker accessibility, or built-in command support. Declarative command integration is element-native; carousel-specific commands need a host element with the carousel's semantics. An attribute on `<section>` cannot host element-specific commands without per-instance opt-in — a `<section focusgroup="...">` still requires manual `role`, `aria-roledescription`, and per-slide `aria-label`.
+
+### `role="carousel"` alone
+A role without a native element provides no keyboard behavior. The ARIA WG [closed #1617](https://github.com/w3c/aria/issues/1617), directing work to Open UI.
+
+### Author-decorated `<section>` with manual ARIA
+Requires ~3 ARIA attributes per slide plus container boilerplate, manual `aria-live` management, and bespoke JavaScript. `<carousel>` eliminates this boilerplate.
+
+### Reusing `<details>` or accordion semantics
+Carousels and accordions have different spatial models. Overloading `<details>` would mislead AT.
+
+### A dedicated child element for slides
+A `<carouselslide>` adds migration cost without semantic value beyond `role="group"`. Using existing container elements as slides avoids inventing a dedicated child element and composes with CSS carousel markup.
+
+## Open design questions
+<p class="question">What is the relationship between `<carousel>` and `<tabs>` / `<tabpanel>`? This proposal treats them as separate elements.</p>
+<p class="question">Should the `next` command at the last slide wrap to the first? A `loop` attribute is under consideration.</p>
+<p class="question">How should a thumbnail `<carousel>` link to a main `<carousel>`? Options: `for`, `controls`, or a sibling relationship.</p>
+<p class="question">Should `<carousel>` interact with `loading="lazy"` on child images or preload adjacent slides?</p>
+<p class="question">Should `<carousel>` support an explicit axis attribute that decouples keyboard navigation from CSS `scroll-snap-type`, or should vertical scrolling be handled exclusively via writing mode and CSS?</p>
+<p class="question">How should `<carousel>` integrate with View Transitions when slides change?</p>
+<p class="question">Should `<carousel>` participate in form submission, or is it explicitly non-form-associated?</p>
+<p class="question">How should nested `<carousel>` elements behave? Should the outer carousel's arrow-key handling defer to the inner carousel when it has focus?</p>
+<p class="question">How does `<carousel>` compose with Shadow DOM? Can a shadow root's slot distribution produce slides?</p>
+<p class="question">How should `<carousel>` render in print media — all slides visible, or only the current slide?</p>
+
+## References and acknowledgements
+**People** (alphabetical): [@aardrian](https://github.com/aardrian) (Adrian Roselli), [@argyleink](https://github.com/argyleink) (Adam Argyle), [@bkardell](https://github.com/bkardell) (Brian Kardell), [@cookiecrook](https://github.com/cookiecrook) (James Craig), [@flackr](https://github.com/flackr) (Robert Flack), [@gmjellin](https://github.com/gmjellin), [@hdv](https://github.com/hdv) (Hidde de Vries), [@jnurthen](https://github.com/jnurthen) (James Nurthen), [@lukewarlow](https://github.com/lukewarlow) (Luke Warlow), [@Patrick_H_Lauke](https://github.com/Patrick_H_Lauke), [@scottaohara](https://github.com/scottaohara) (Scott O'Hara), [@sinabahram](https://github.com/sinabahram), [@smfr](https://github.com/smfr) (Simon Fraser), [@una](https://github.com/una) (Una Kravets), [@wendyreid](https://github.com/wendyreid) (Wendy Reid)
+
+**Specifications and resources:**
+* [APG Carousel Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/)
+* [Chrome CSS Carousels Blog](https://developer.chrome.com/blog/carousels-with-css)
+* [CSS Overflow Module Level 5](https://drafts.csswg.org/css-overflow-5/)
+* [flackr/carousel Explainer](https://github.com/flackr/carousel)
+* [openui/open-ui#405](https://github.com/openui/open-ui/issues/405)
+* [TPAC 2024 Breakout Minutes](https://www.w3.org/2024/09/25-css-minutes.html#t03)
+* [w3c/aria#1617](https://github.com/w3c/aria/issues/1617)
+* [w3c/aria#2496](https://github.com/w3c/aria/issues/2496)
+* [w3c/csswg-drafts#9745](https://github.com/w3c/csswg-drafts/issues/9745)
+* [WAI Carousels Tutorial](https://www.w3.org/WAI/tutorials/carousels/)
