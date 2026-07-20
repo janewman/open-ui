@@ -843,12 +843,11 @@ Focusgroups have the following additional features:
 
 - [Wrap-around semantics](#enabling-wrapping-behaviors) - what to do when attempting to move past
    the end of a `focusgroup`. The default/initial value is `nowrap`, which means that focus is
-   not moved past the ends of a `focusgroup` with the arrow keys. `wrap` and other tabular wrapping
-   behaviors apply to V2 grid `focusgroup`s.
+   not moved past the ends of a `focusgroup` with the arrow keys. Both grid behaviors always use hard edges.
 - [Directional axis limits](#limiting-linear-focusgroup-directionality) - applies to linear
    `focusgroup`s only; respond to arrow keys in one axis only (either up/down or left/right when the
    arrow key pressed matches the corresponding flow of the content). By default, linear `focusgroup`s
-   respond to all four arrow keys.
+   respond to all four arrow keys. Both grid behaviors always derive both axes from their topology.
 - [`focusgroup` candidacy opt-out](#opting-out) - prevent an element and its
   shadow-inclusive descendants from participating in an ancestor's `focusgroup`.
 - [Memory opt-out](#disabling-focusgroup-memory) - prevent the `focusgroup` from remembering what the
@@ -1004,23 +1003,15 @@ _Note: Some behavior tokens carry `wrap` as a [default modifier](#default-modifi
 
 | HTML (attribute value) | Applies To | Effect |
 |---|---|---|
-| `focusgroup="<behavior>"` (where `<behavior>` is one of the non-grid behaviors) | linear | No wrapping; edges are hard stops (unless the behavior token's [default modifiers](#default-modifiers) include `wrap`). |
-| `focusgroup="<behavior> wrap"` (where `<behavior>` is one of the non-grid behaviors) | linear | Moving past one end wraps focus to the opposite end. |
-| `focusgroup="<behavior> nowrap"` (where `<behavior>` is one of the non-grid behaviors) | linear | Explicitly disable wrapping; edges are hard stops. Overrides a behavior token's default `wrap` modifier. |
-| (default) `focusgroup="grid"` | grid | No wrapping; row and column edges are hard stops. |
-| `focusgroup="grid wrap"` | grid | Rows and columns wrap within their own row/column (end → start of same row/column). |
-| `focusgroup="grid row-wrap"` | grid | Rows wrap; columns do not. |
-| `focusgroup="grid col-wrap"` | grid | Columns wrap; rows do not. |
-| `focusgroup="grid flow"` | grid | Moving past row end jumps to start of NEXT row (and reverse); same for columns. Last row/column flows to first. |
-| `focusgroup="grid row-flow"` | grid | Rows flow; columns are hard stops. |
-| `focusgroup="grid col-flow"` | grid | Columns flow; rows are hard stops. |
-| `focusgroup="grid row-wrap col-flow"` | grid | Rows wrap; columns flow. |
-| `focusgroup="grid row-flow col-wrap"` | grid | Rows flow; columns wrap. |
+| `focusgroup="<behavior>"` (where `<behavior>` is a shipped linear behavior) | linear | No wrapping; edges are hard stops (unless the behavior token's [default modifiers](#default-modifiers) include `wrap`). |
+| `focusgroup="<behavior> wrap"` (where `<behavior>` is a shipped linear behavior) | linear | Moving past one end wraps focus to the opposite end. |
+| `focusgroup="<behavior> nowrap"` (where `<behavior>` is a shipped linear behavior) | linear | Explicitly disable wrapping; edges are hard stops. Overrides a behavior token's default `wrap` modifier. |
+| (proposed automatic grid default) `focusgroup="grid"` | grid | No wrapping; row and column edges are hard stops. |
+| (proposed manual grid default) `focusgroup="grid-manual"` | grid | No wrapping; row and column edges are hard stops. |
 
 Specifying both `wrap` and `nowrap` in one HTML `focusgroup` definition is an author error.
 
-Specifying both `row-wrap` and `row-flow` in one HTML `focusgroup` definition is an author error. Only
-one declaration for row behavior is allowed. Similarly for `col-wrap` and `col-flow`.
+The proposal does not define `wrap` or `nowrap` for `grid` or `grid-manual`; their boundaries are hard stops. The proposed `feed` wrapping and key model remains open, so the current draft accepts neither wrapping token for that behavior. At a grid edge, the user agent does not consume the key for grid focusgroup behavior.
 
 ## Limiting linear focusgroup directionality
 
@@ -1034,9 +1025,9 @@ can limit the linear `focusgroup` to one-axis traversal.
 
 _Note: Some behavior tokens carry `inline` or `block` as a [default modifier](#default-modifiers) (e.g., `tablist` defaults to `inline`, `menu` defaults to `block`). When a default modifier supplies an axis restriction, the author does not need to specify it explicitly._
 
-Note that the following only apply to linear `focusgroup` definitions. (Grid is V2 work, described below.)
+Note that the following only apply to linear `focusgroup` definitions. Both grid behaviors derive both axes from row and column structure and do not accept `inline` or `block`; the `feed` key model remains open.
 
-_Note: `<behavior>` below refers to one of the non-grid behaviors._
+_Note: `<behavior>` below refers to a shipped linear behavior._
 
 _Note: The effective axis depends on both explicit tokens and [default modifiers](#default-modifiers). The table below shows explicit modifier values; behavior tokens with default axis restrictions (e.g., `tablist` → `inline`, `menu` → `block`) apply those defaults automatically when no explicit axis token is specified._
 | HTML (attribute value) | Explanation |
@@ -1521,6 +1512,68 @@ Targetless cells remain part of the rectangular topology. Inline movement scans 
 
 Every focusable descendant owned by a valid grid must be either the selected target for its semantic cell, a managed source-only element under the negative-`tabindex` rule above, or excluded by `focusgroup="none"`, an independent nested focusgroup, or a top-layer boundary. A focusable row, wrapper, or unexcluded extra descendant makes the grid invalid. If a focusable cell is the selected target, any nested focusable controls must therefore use one of those explicit boundaries.
 
+#### Multi-control cells and itemcontrols
+
+A cell with multiple controls uses a focusable cell boundary as its grid target. Its inner controls use `focusgroup="none"` so they do not become grid targets. Authors can add the independent `itemcontrols` modifier to expose only the active cell's controls through sequential focus navigation.
+
+```html
+<div role="grid" focusgroup="grid-manual itemcontrols" aria-label="Files">
+  <div role="row" focusgrouprow>
+    <div role="gridcell" tabindex="0">
+      <span>Design specification</span>
+      <a href="/files/design-spec" focusgroup="none">Open</a>
+      <button type="button" focusgroup="none" aria-label="More actions for Design specification">More</button>
+    </div>
+    <div role="gridcell" tabindex="0">
+      <span>Research notes</span>
+      <a href="/files/research-notes" focusgroup="none">Open</a>
+      <button type="button" focusgroup="none" aria-label="More actions for Research notes">More</button>
+    </div>
+  </div>
+</div>
+```
+
+What to notice:
+
+- Each focusable `gridcell` is the single grid target for its coordinate.
+- The links and buttons are excluded from grid directional navigation with `focusgroup="none"`.
+- `itemcontrols` remains an optional, independent modifier for both `grid` and `grid-manual`. Without it, opted-out descendants follow the normal segment and sequential-navigation rules.
+
+### Grid directional navigation
+
+The grid owner's computed writing mode and direction map physical arrow keys to inline-start, inline-end, block-start, and block-end. The resulting commands operate as follows:
+
+| Command | Result |
+|---|---|
+| Inline-start or inline-end | Moves to the previous or next eligible target in the current row, scanning through targetless cells. |
+| Block-start or block-end | Preserves the current column and scans rows in that direction through targetless cells. |
+| Home or End | Moves to the first or last eligible target in the current row. |
+| Ctrl+Home or Ctrl+End | Moves to the first or last eligible target in row-major order. |
+| Page Up or Page Down | Not handled by grid focusgroup behavior. |
+
+The initial shape has no missing coordinate slots because every row has the same number of cells. Inline movement never crosses a row, and neither grid behavior supports `wrap` or `nowrap`. At a hard edge or when no eligible target exists in the requested direction, focus does not move and the user agent does not consume the key for grid focusgroup behavior.
+
+After `keydown` propagation, grid dispatch continues only if the event was not canceled and focus remains on the original focused area. It recognizes unmodified Arrow, Home, and End keys, plus exactly Ctrl+Home and Ctrl+End; all other modifier combinations remain available to platform or author behavior. If the focused element has a native default action for that exact key and modifier combination, grid navigation does not run.
+
+The user agent then resolves the nearest parsed focusgroup owner. Invalid owners remain boundaries and do not delegate to an ancestor. For a valid grid, the user agent resolves the source coordinate from either the focused eligible target or a focused negative-`tabindex` source-only element, maps physical Arrow keys using the grid owner's writing mode, builds one current topology snapshot, and selects an eligible provider target. It rechecks the destination immediately before invoking the HTML focusing steps.
+
+Navigation succeeds only if the destination becomes the document's focused area. Only then does grid focusgroup behavior consume the command. At a hard edge, for a native key conflict, when focus changed during dispatch, or when focusing fails, grid focusgroup behavior leaves the uncanceled command available to normal scrolling, editing, or other default behavior. If `preventDefault()` canceled the event, grid navigation does not run and the canceled default behavior remains canceled.
+
+### Sequential entry, memory, and mutations
+
+A grid owner has one focusgroup memory; rows and `focusgrouprow` markers do not have separate memory. The valid grid target provider supplies the target set consistently for directional navigation, sequential entry, `focusgroupstart`, and memory:
+
+1. The shared segment rules determine the grid segment being entered.
+2. When memory is enabled, a remembered eligible grid target in that segment has priority.
+3. Otherwise, an eligible target with `focusgroupstart` has priority.
+4. Otherwise, the first eligible grid target in sequential focus navigation order becomes the entry target.
+
+The selected target is the grid segment's single sequential entry target. `nomemory` disables restoration under the existing rules. Grid memory updates only when an eligible provider target receives focus. An associated `itemcontrols` control maps back to its active outer grid target; focusing an excluded, nested, or otherwise non-target descendant does not replace the prior grid memory.
+
+`focusgroupstart` on a row, wrapper, targetless cell, negative-`tabindex` element, or otherwise ineligible descendant does not make that element a grid target. `reading-flow` may affect sequential order, but it does not alter the row and column coordinates used by directional navigation.
+
+When rows, cells, attributes, focusability, rendering, `ElementInternals` roles, slot assignment, or scope boundaries change, the user agent marks the owner topology dirty. The general memory-clearing rules continue to apply. A mutation that might make the remembered element cease to be an eligible provider target immediately revalidates or conservatively clears that memory. This includes negative `tabindex`, hiding, disabling, inertness, removal, exclusion, ownership changes, target-selection ambiguity, and transient grid invalidity. Restoring eligibility later does not restore cleared memory. Before every directional command, sequential-entry operation, or sequential-focus query involving the owner, the user agent rebuilds one immutable topology snapshot from the current flat tree and revalidates all remaining state. Implementations may cache snapshots only when the result is behaviorally equivalent. A mutation does not move focus solely because the topology or memory changed.
+
 ### Invalid grid structures
 
 A marker/role mismatch, missing manual row marker, mixed automatic/manual configuration, unsupported grid modifier, malformed row or cell relationship, multiple eligible descendants in a nonfocusable cell, incompatible owner role, or unsupported shape makes the grid invalid. In that state, **grid focusgroup behavior is ignored**: directional key handling, memory, sequential-entry collapse, segment behavior, and any focusgroup inference for that grid do not run.
@@ -1586,6 +1639,14 @@ The key model for directional navigation between articles remains an [open quest
 
 When articles are inserted, removed, hidden, disabled, or made inert, a `feed` focusgroup updates its item set and applies the [active-item invalidation](#active-item-invalidation) rules before the next relevant sequential operation. Virtualized feeds expose only their rendered articles to focusgroup navigation; the focusgroup does not request or load additional content — loading and `aria-busy` management remain author responsibilities per the [APG feed contract](https://www.w3.org/WAI/ARIA/apg/patterns/feed/). The exact key model and its interaction with loading remain [open questions](#open-questions).
 
+## Additional keyboard support
+
+Linear focusgroup provides directional navigation, and Chromium implements Home/End movement. On macOS, Home and End can still scroll before focusgroup handles them; [Chromium change 8059345](https://chromium-review.googlesource.com/c/chromium/src/+/8059345) tracks the fix.
+
+The grid key set is defined in [Grid directional navigation](#grid-directional-navigation). Home and End move to the first and last eligible targets in the current row. Ctrl+Home and Ctrl+End move to the first and last eligible targets in row-major order. Grid focusgroup behavior does not handle Page Up or Page Down.
+
+The grid and feed behaviors do not change selection, activation, expansion, or content-loading behavior.
+
 ## Authoring guidance
 1. Place the behavior token first for readability: `focusgroup="tablist"`, `focusgroup="toolbar wrap"`. Order is not significant, but a consistent convention helps readers.
 2. Rely on [default modifiers](#default-modifiers) when possible — e.g., `focusgroup="tablist"` already implies `inline wrap`. Only add explicit modifiers to override defaults or add behaviors the token doesn't supply.
@@ -1593,6 +1654,12 @@ When articles are inserted, removed, hidden, disabled, or made inert, a `feed` f
 4. For detailed precedence (mismatches, inference limits, overrides) see [Behavior → role mapping and precedence](#behavior--role-mapping-and-precedence).
 5. Add `itemcontrols` to a behavior when each item contains nested controls that should stay out of directional navigation. Mark those controls with `focusgroup="none"`; only controls associated with the active item participate in sequential focus navigation.
 6. Use generic containers with `focusgroup="feed"` to let the behavior infer the `feed` and `article` roles. Include `aria-labelledby`, `aria-posinset`, and `aria-setsize` on each article per the [APG feed pattern](https://www.w3.org/WAI/ARIA/apg/patterns/feed/). Mark nested controls with `focusgroup="none"`; `feed` implies `itemcontrols`, so only controls associated with the active item participate in sequential focus navigation.
+7. Use a grid behavior only when the owner already exposes `grid` semantics and rows and columns remain semantically meaningful after layout changes. A plain table requires `role="grid"`; responsive lists and masonry layouts use linear navigation instead.
+8. Use `grid` when semantic row and cell ownership is automatic and unambiguous. Do not add `focusgrouprow` to an automatic grid.
+9. Use the atomic `grid-manual` behavior for arbitrary or custom markup. Mark every owned semantic row with `focusgrouprow`; do not rely on automatic fallback.
+10. Preserve native, explicit, or custom-element default row and cell semantics in either mode. Do not mark cells with `focusgroupcell`, and do not use focusability to identify cells.
+11. Keep the initial grid rectangular, spanless, and fully rendered. Do not use the grid behaviors for ragged, spanning, virtualized, indexed, or `treegrid` structures.
+12. Give a multi-control cell a focusable cell boundary. Mark its inner controls with `focusgroup="none"` and add `itemcontrols` when only the active cell's controls should participate in sequential focus navigation.
 
 ## Alternatives considered
 When considering how to ensure that `focusgroup` usage is scoped to scenarios we want, the following
@@ -1600,6 +1667,10 @@ approaches were considered.
 1. Role-required gating (original): only activates when an eligible `role` attribute is present. Rejected: couples behavior activation to ARIA; breaks precedent.
 2. Parent-only implicit role (earlier alternative): ensures that aria norms are followed, while still allowing authors to avoid repetition.
 3. Adopted (parent token + child inference): Same as above, but additionally sets the expected role on children that participate in the `focusgroup`.
+4. Geometry-derived grid navigation: derives directional targets from rendered positions and adapts to reflow. Not included in the grid proposal because visual rows may not match the content's accessible structure; tracked as broader multidirectional-navigation work in [Open UI issue #1390](https://github.com/openui/open-ui/issues/1390).
+5. Independent grid-owner, feed, and item-controls attributes: separates each behavior into its own API. Not adopted because the behaviors share focusgroup ownership, memory, and sequential-navigation rules and compose on the existing attribute. The structural `focusgrouprow` boolean remains separate because it enrolls rows rather than defining owner behavior.
+6. Separate `grid` and `manual` tokens: expresses manual topology as `focusgroup="grid manual"`. Not adopted because a user agent that recognizes `grid` but not `manual` could accidentally activate automatic topology. The atomic `grid-manual` behavior makes support detection and fallback unambiguous.
+7. Focusgroup values for both rows and cells: duplicates semantic row and cell identity in the behavior attribute. Not adopted because automatic mode can discover both from semantics, while manual mode needs only explicit row enrollment. Cell roles continue to define coordinates.
 
 ## Open questions
 
@@ -1610,6 +1681,22 @@ approaches were considered.
 <p class="question">Does one `itemcontrols` mode cover the required behavior, or are separate limited, unlimited, and trapping modes needed?</p>
 
 <p class="question">Should a linear focusgroup support a mode in which peer items remain reachable by both sequential and directional navigation?</p>
+
+<p class="question">How should a future grid extension represent ragged rows, row and column spans, hidden cells, virtualized content, and indexed topology while preserving a stable current coordinate?</p>
+
+<p class="question">Should a future version support `aria-owns` for row or cell ownership and ordering?</p>
+
+<p class="question">How should the DOM-side grid-structure role classifier be shared with accessibility mappings so explicit role-token precedence, `ElementInternals` defaults, and native contextual table semantics remain aligned?</p>
+
+<p class="question">Which diagnostics should user agents expose for incompatible grid owner roles, misplaced `focusgrouprow`, partial manual enrollment, unsupported shapes, and malformed row, cell, or target structure?</p>
+
+<p class="question">Should a future target-selection mode support multiple eligible descendants in a nonfocusable cell, and if so, how can it avoid ambiguous or unstable target choice?</p>
+
+<p class="question">How should `treegrid` extend grid topology, expansion state, and directional key handling without conflicting with the initial rectangular grid model?</p>
+
+<p class="question">Should a future grid version handle Page Up and Page Down, and if so, is their movement unit a row, viewport, rendered page, or author-defined range?</p>
+
+<p class="question">Does `itemcontrols` need grid-specific entry, memory, or escape behavior beyond the focusable-cell-boundary model?</p>
 
 <p class="question">Should `itemcontrols` remember the last control in addition to the outer item, and if so, when should that nested memory be restored?</p>
 
@@ -1684,22 +1771,22 @@ Behavior tokens: See the earlier Supported behaviors mapping table for the defin
 
 ***Focusgroup directions:***
 
-| Description | HTML syntax |
-|---|---|
-| both directions for a linear `focusgroup` | (unspecified value; default value) |
-| inline direction for a linear `focusgroup` | `inline` |
-| block direction for a linear `focusgroup` | `block` |
+| Description | HTML syntax | Applies to |
+|---|---|---|
+| Behavior axis default, or both directions when the behavior has no axis default | (unspecified value) | Shipped linear behaviors |
+| Both axes derived from semantic row and column topology | (no direction modifier) | `grid`, `grid-manual` |
+| Inline direction | `inline` | Shipped linear behaviors |
+| Block direction | `block` | Shipped linear behaviors |
 
 ***Focusgroup wrapping:***
 
-| Description | HTML syntax |
-|---|---|
-| no wrap | (unspecified value; default value) |
-| no wrap (explicit, overrides default) | `nowrap` |
-| wrap | `wrap` |
-| flow (grid focusgroups only) | `flow` |
-| column specific | `col-wrap`, `col-flow`, `col-none` |
-| row specific | `row-wrap`, `row-flow`, `row-none` |
+| Description | HTML syntax | Applies to |
+|---|---|---|
+| Behavior default | (unspecified value) | Shipped linear and proposed grid behaviors; the proposed `feed` wrapping model remains open |
+| no wrap (explicit, overrides default) | `nowrap` | Shipped linear behaviors |
+| wrap | `wrap` | Shipped linear behaviors |
+
+The proposed `grid` and `grid-manual` behaviors do not accept `wrap` or `nowrap`. The proposed `feed` wrapping model remains open; the current draft accepts neither wrapping token.
 
 ***Focusgroup memory:***
 
