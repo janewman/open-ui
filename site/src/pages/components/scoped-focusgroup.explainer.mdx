@@ -124,11 +124,12 @@ Specifying a specific item as the [start element](#the-focusgroupstart-attribute
 | [`nowrap`](#enabling-wrapping-behaviors) | Optional | Explicitly disable wrapping. Useful for overriding a behavior token's default `wrap` modifier (e.g., `focusgroup="tablist nowrap"`). Cannot be combined with `wrap`. |
 | [`nomemory`](#disabling-focusgroup-memory) | Optional | Disable restoring last-focused item on re-entry (memory is on by default). |
 | [`none`](#opting-out) | Standalone | Opt-out: exclude element and its subtree from ancestor focusgroup. Cannot be combined with any other token. |
-| [`itemcontrols`](#proposed-itemcontrols) | Proposed modifier | Would make `focusgroup="none"` descendants of the active item available to sequential focus navigation while skipping those associated with inactive items. |
+| [`itemcontrols`](#proposed-itemcontrols) | Proposed modifier; implied by `feed` | Would make `focusgroup="none"` descendants of the active item available to sequential focus navigation while skipping those associated with inactive items. |
+| [`feed`](#proposed-feed-focusgroups) | Proposed interactive-list behavior; working name | Would imply `itemcontrols`; its key and semantic model remain open. |
 
 ## Focusgroup V1 and V2
 
-Focusgroup **V1** is the current linear design. It narrows the scope of the [original focusgroup explainer](https://github.com/openui/open-ui/blob/fdd348a/site/src/pages/components/focusgroup.explainer.mdx). **V2** covers the active new work — grid, `itemcontrols`, and `feed`. This draft proposes the [`itemcontrols`](#proposed-itemcontrols) modifier for controls inside an active item; it does not otherwise define an interactive-list behavior.
+Focusgroup **V1** is the current linear design. It narrows the scope of the [original focusgroup explainer](https://github.com/openui/open-ui/blob/fdd348a/site/src/pages/components/focusgroup.explainer.mdx). **V2** covers the active new work — grid, `itemcontrols`, and `feed`. This draft also proposes the [`itemcontrols`](#proposed-itemcontrols) modifier for controls inside an active item and the provisional [`feed`](#proposed-feed-focusgroups) interactive-list behavior, whose final name and key model remain open.
 
 ### CSS activation is no longer being considered
 Focusgroup V1 and V2 define behavior through the HTML `focusgroup` attribute. CSS activation and CSS mappings are no longer being considered.
@@ -371,9 +372,7 @@ accessible by default by:
 - requiring no new screen reader features: the behaviors (roving tabindex, arrow + Home/End movement,
   optional wrap, last-focused memory) already function today when authored via JavaScript, `focusgroup`
   standardizes intent without introducing novel interaction semantics.
-  - Because `focusgroup` requires authors to specify a pattern, and the aria-role of the element and
-  controlled descendants are set appropriately, there should be no need for user agents to signal the
-  AT to switch to a ["Focus mode"](https://www.accessibility-developer-guide.com/knowledge/screen-readers/desktop/browse-focus-modes/) by default (the user has entered a control group).
+  - For behaviors that use compatible composite widget roles, the owner and item semantics provide the existing signal for assistive technologies to use a ["Focus mode"](https://www.accessibility-developer-guide.com/knowledge/screen-readers/desktop/browse-focus-modes/). Proposed behaviors without such a role, such as a roleless interactive list, do not automatically trigger focus mode and need a separate key and assistive-technology interaction model.
 
 ### Non-goals
 
@@ -495,7 +494,7 @@ An element with negative `tabindex` is not sequentially focusable merely because
 
 When excluded sequentially focusable content occurs between two focusgroup items, it divides the focusgroup into one segment on each side. Directional navigation may cross segments while skipping the excluded content; segments constrain sequential entry rather than directional reachability.
 
-The proposed `itemcontrols` behavior adds a scoped exception for `focusgroup="none"` descendants of an outer focusgroup item. Those descendants remain excluded from directional navigation, but the controls associated with the active outer item participate in sequential focus navigation. Equivalent controls associated with inactive outer items do not create sequential entry points.
+The proposed `itemcontrols` behavior adds a scoped exception for `focusgroup="none"` descendants of an outer focusgroup item. Those descendants remain excluded from directional navigation, but the controls associated with the active outer item participate in sequential focus navigation. Equivalent controls associated with inactive outer items do not create sequential entry points. `feed` implies this behavior.
 
 Each segment operates independently for certain behaviors:
 - **Guaranteed tab stop:** Each segment ensures exactly one tab-accessible focusgroup item. The proposed [`itemcontrols`](#proposed-itemcontrols) extension would additionally expose `focusgroup="none"` controls associated with the active item.
@@ -814,7 +813,7 @@ Focusgroups have the following additional features:
    last focused element was when focus leaves a `focusgroup`. By default `focusgroup`s remember that
    element and will restore the focus to that element when the `focusgroup` is re-entered via
    sequential focus navigation.
-- [`itemcontrols`](#proposed-itemcontrols) - preserve an outer focusgroup item as the directional-navigation target while managing sequential access to its `focusgroup="none"` controls.
+- [`itemcontrols`](#proposed-itemcontrols) - preserve an outer focusgroup item as the directional-navigation target while managing sequential access to its `focusgroup="none"` controls. The proposed `feed` behavior implies this modifier.
 
 Authors **specify** these feature options as space-separated token values in the `focusgroup`
 attribute.
@@ -1255,7 +1254,7 @@ An `itemcontrols` focusgroup would maintain an **active outer item** while focus
 - Forward entry would focus the chosen outer-item boundary. Reverse entry would focus its last associated opted-out control, when present, while keeping the outer item active.
 - `nomemory` would disable persistence after focus leaves the group, but not the active state needed while focus remains inside it. A later entry would choose a new outer item using the no-memory entry rules.
 
-The selected behavior determines outer items before `itemcontrols` changes sequential navigation. Shipped linear behaviors use their managed focusgroup items. Each opted-out control is then associated with its nearest containing outer item.
+The selected behavior determines outer items before `itemcontrols` changes sequential navigation. Shipped linear behaviors use their managed focusgroup items; the proposed `feed` behavior uses its top-level semantic list items. Each opted-out control is then associated with its nearest containing outer item.
 
 The user agent computes **base segments** before selecting an active item. Associated controls do not create base segment boundaries, regardless of which item later becomes active. Excluded sequentially focusable content that is not associated with an outer item, plus independent nested focusgroups and top-layer subtrees, creates boundaries under the shared segment definition. The entry point selects one base segment; memory, `focusgroupstart`, and ordinary priority select an outer item in that segment. The selected item becomes active, and only its associated controls are then inserted into sequential order. This avoids using active-item filtering to decide the segment that selects the active item.
 
@@ -1538,12 +1537,63 @@ row cannot be honored because there is no "3rd cell" in that row).
 
 </details>
 
+## Proposed feed focusgroups
+
+The behavior currently named `feed` is a candidate for vertically ordered interactive lists whose items may contain nested controls, such as chat threads, notification lists, file lists, and cards with actions. It would imply [`itemcontrols`](#proposed-itemcontrols), keeping opted-out controls associated with the active item available through sequential focus navigation while skipping controls associated with inactive items.
+
+The working name reflects an adjacent use case, not an automatic ARIA role mapping. This proposal defines no automatic `feed` or `article` role mapping or inference. Its final name, directional key set, wrapping behavior, loading model, and relationship to ARIA feeds all remain open.
+
+If a true ARIA-feed behavior is considered later, it must build on existing native or explicit `article` semantics for each feed item. It must never infer `article` onto generic descendants, and it must not reuse the native `<button>` child-role exception for structural roles. Native buttons and links inside an article remain controls within that article, not peer feed items.
+
+### Items and nested controls
+
+Under the current working model, a top-level item is a focusable element whose native or explicit `listitem` semantics are owned by the `focusgroup="feed"` list. An item in a nested list belongs to that nested list and is not promoted to a peer of the top-level items; nested lists therefore act as boundaries. Generic or presentational wrappers may intervene only when they preserve that semantic ownership. Authors mark nested controls with `focusgroup="none"` so they do not become top-level items. Because `feed` implies [`itemcontrols`](#proposed-itemcontrols), only opted-out controls associated with the active item participate in sequential focus navigation.
+
+No directional key behavior is specified yet. Native list semantics commonly keep assistive technologies in a reading mode where Up and Down are reading commands, so the proposal must resolve an assistive-technology-compatible key model before `feed` can define directional navigation.
+
+The following markup illustrates the proposed item and `itemcontrols` structure only. It is not a complete keyboard pattern, because the directional key model is unresolved.
+
+```html
+<!-- Illustrative structure; directional keys remain unresolved. -->
+<ul focusgroup="feed" aria-label="Posts">
+  <li tabindex="0">
+    <h2>Foo Bar</h2>
+    <button type="button" focusgroup="none">Like</button>
+    <button type="button" focusgroup="none" id="comment-foo-bar">Comment</button>
+  </li>
+  <li tabindex="0">
+    <h2>Baz Bo</h2>
+    <button type="button" focusgroup="none">Like</button>
+    <button type="button" focusgroup="none">Comment</button>
+  </li>
+</ul>
+<input type="search" aria-label="Search posts" />
+```
+
+What to notice:
+
+- The `<ul>` and `<li>` elements retain their native list semantics. The `feed` behavior adds no `feed` or `article` role.
+- Each focusable top-level `<li>` is an interactive-list item; items in a nested list would not become peers.
+- `feed` implies `itemcontrols`, so only the opted-out buttons associated with the active item participate in sequential focus navigation.
+- Tab from the active list item moves into its first associated button; Shift+Tab from that button returns to the active list item.
+- If focus is on `#comment-foo-bar` (the last associated control of the active **Foo Bar** item), one Tab press moves focus to the following search field. The inactive **Baz Bo** item and its opted-out buttons are skipped for that sequential step.
+- Loading additional posts, activating a link, and opening an actions menu remain author behavior.
+
+### Relationship to ARIA feeds
+
+ARIA `feed` is a structural container rather than a composite widget. Assistive technologies commonly remain in reading mode and move focus between articles with reading commands. The APG feed convention uses Page Up and Page Down to move between articles and Ctrl+Home and Ctrl+End to move between the feed and the surrounding page; it does not take over Up and Down. Because the current proposal maps no roles and defines no directional keys, authors should not treat `focusgroup="feed"` as an ARIA feed until the interactive-list design resolves whether the token is renamed or gains a key model that preserves the ARIA feed contract.
+
+### Dynamic content
+
+When items are inserted, removed, hidden, disabled, or made inert, a `feed` focusgroup would update its item set and apply the [active-item invalidation](#active-item-invalidation) rules before the next relevant sequential operation. Virtualized interactive lists would expose only their rendered items to focusgroup navigation; focusgroup would neither request nor load additional content. Whether the proposal should define a separate ARIA-feed key and loading model remains an [open question](#open-questions).
+
 ## Authoring guidance
 1. Place the behavior token first for readability: `focusgroup="tablist"`, `focusgroup="toolbar wrap"`. Order is not significant, but a consistent convention helps readers.
 2. Rely on [default modifiers](#default-modifiers) when possible — e.g., `focusgroup="tablist"` already implies `inline wrap`. Only add explicit modifiers to override defaults or add behaviors the token doesn't supply.
 3. Omit common child roles unless you need a variant (checkbox / radio menu items, mixed controls, etc.). `<button>` elements receive child role inference automatically.
 4. For detailed precedence (mismatches, inference limits, overrides) see [Behavior → role mapping and precedence](#behavior--role-mapping-and-precedence).
 5. Add `itemcontrols` to a behavior when each item contains nested controls that should stay out of directional navigation. Mark those controls with `focusgroup="none"`; only controls associated with the active item participate in sequential focus navigation.
+6. Use explicit `list` and `listitem` semantics with the working `feed` behavior. Mark nested controls with `focusgroup="none"`; `feed` implies `itemcontrols`, so only controls associated with the active item participate in sequential focus navigation. Do not combine it with ARIA `feed` until the interactive-list design resolves the behavior's final name and key model.
 
 ## Alternatives considered
 When considering how to ensure that `focusgroup` usage is scoped to scenarios we want, the following
@@ -1568,6 +1618,9 @@ approaches were considered.
 
 <p class="question">How should an inner directional focusgroup compose with an outer focusgroup item, including entry, escape, and resuming outer movement?</p>
 
+<p class="question">Should the working `feed` token be renamed for interactive-list behavior, or should the proposal define a distinct key model for ARIA feeds? If ARIA feeds are included, what role mappings apply?</p>
+
+<p class="question">Which Home, End, Page Up, Page Down, Ctrl+Home, and Ctrl+End commands should any ARIA-feed behavior provide, and how do they interact with scrolling, loading, and virtualization?</p>
 ## Polyfilling
 
 The Microsoft polyfill implements core linear focusgroup behavior with [documented limitations](https://github.com/microsoft/polyfills/blob/main/packages/focusgroup/README.md#limitations).
@@ -1609,10 +1662,11 @@ The grid-only values below belong to the V2 grid design, not V1.
 
 Behavior tokens: See the earlier Supported behaviors mapping table for the definitive list, minimum container roles, child inference notes, and [default modifiers](#default-modifiers). Explicit container and child roles always override any inference. Explicit modifiers always override default modifiers.
 
-***Proposed item controls:***
+***Proposed interactive list and item controls:***
 
 | Description | HTML syntax |
 |---|---|
+| Interactive-list behavior; implies `itemcontrols`; key model open (working name) | `feed` |
 | Active-item opted-out controls in sequential navigation (working name) | `itemcontrols` |
 
 ***Focusgroup directions:***
