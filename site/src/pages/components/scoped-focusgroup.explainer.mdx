@@ -171,7 +171,7 @@ Child role inference likewise only occurs when: (1) the container role was suppl
 
 The `<button>` element is an exception only for compatible composite widget item roles that ARIA-in-HTML permits on `<button>`, such as `tab`, `radio`, and the `menuitem` variants. Child role inference must never apply a structural role, such as `article`, to a button or popup button. Behaviors with no inferred child role skip the exception entirely. A `<button>` inside a `focusgroup="tablist"` container therefore receives the inferred `tab` role, and a `<button>` inside `focusgroup="menu"` receives `menuitem`.
 
-V1 linear focusgroup behavior tokens (APG alignment and minimum roles). All six produce the same linear navigation semantics — only semantic expectations, child inference, and default modifiers differ. The V2 grid row is retained for the detailed grid design below:
+V1 linear focusgroup behavior tokens (APG alignment and minimum roles). All six produce the same linear navigation semantics — only semantic expectations, child inference, and default modifiers differ. The provisional `feed` row defines no inferred roles, and the V2 grid row is retained for the detailed grid design below:
 
 | Behavior | APG Pattern | Minimum container role (when applied) | Minimum child role(s) (when applied) | Default modifiers | APG Pattern Link |
 |---|---|---|---|---|---|
@@ -181,6 +181,7 @@ V1 linear focusgroup behavior tokens (APG alignment and minimum roles). All six 
 | `listbox` | Listbox | [`listbox`](https://www.w3.org/TR/wai-aria-1.2/#listbox) | [`option`](https://www.w3.org/TR/wai-aria-1.2/#option) | `block` | [APG Listbox](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/) |
 | `menu` | Menu | [`menu`](https://www.w3.org/TR/wai-aria-1.2/#menu) | [`menuitem`](https://www.w3.org/TR/wai-aria-1.2/#menuitem) | `block` `wrap` | [APG Menu / Menubar](https://www.w3.org/WAI/ARIA/apg/patterns/menu/) |
 | `menubar` | Menubar | [`menubar`](https://www.w3.org/TR/wai-aria-1.2/#menubar) | [`menuitem`](https://www.w3.org/TR/wai-aria-1.2/#menuitem) | `inline` `wrap` | [APG Menu / Menubar](https://www.w3.org/WAI/ARIA/apg/patterns/menu/) |
+| `feed` (proposed; working name) | (none; provisional interactive list) | (none) | (none) | `itemcontrols` | [Proposed feed focusgroups](#proposed-feed-focusgroups) |
 | `grid` (V2) | Grid (2-D) | [`grid`](https://www.w3.org/TR/wai-aria-1.2/#grid) | (TBD) | (TBD) | [APG Grid](https://www.w3.org/WAI/ARIA/apg/patterns/grid/) |
 
 #### Default modifiers
@@ -484,17 +485,17 @@ Note that the elements with `id=one`, `id=two`, and `id=three` can be reached vi
 
 ### Focusgroup segments
 
-A **focusgroup segment** is a contiguous run of focusgroup items that shares one entry point in sequential focus navigation. The following excluded content creates a boundary when it contains a sequentially focusable area:
+A **focusgroup segment** is a contiguous run of focusgroup items that shares one entry point in sequential focus navigation. The following excluded content creates a boundary when it contains a sequentially focusable area or the currently focused area:
 
 1. An element opting out through `focusgroup="none"` and its excluded descendants.
 2. An independent nested focusgroup.
 3. A [top-layer excluded subtree](#top-layer-elements).
 
-An element with negative `tabindex` is not sequentially focusable merely because it currently has focus, so it does not create a segment boundary on that basis.
+Current focus therefore makes an otherwise non-sequentially-focusable element, including one with negative `tabindex`, a boundary for that navigation step.
 
-When excluded sequentially focusable content occurs between two focusgroup items, it divides the focusgroup into one segment on each side. Directional navigation may cross segments while skipping the excluded content; segments constrain sequential entry rather than directional reachability.
+When excluded content meeting this condition occurs between two focusgroup items, it divides the focusgroup into one segment on each side. Directional navigation may cross segments while skipping the excluded content; segments constrain sequential entry rather than directional reachability.
 
-The proposed `itemcontrols` behavior adds a scoped exception for `focusgroup="none"` descendants of an outer focusgroup item. Those descendants remain excluded from directional navigation, but the controls associated with the active outer item participate in sequential focus navigation. Equivalent controls associated with inactive outer items do not create sequential entry points. `feed` implies this behavior.
+The proposed `itemcontrols` behavior adds a scoped exception for `focusgroup="none"` descendants of an outer focusgroup item. Those descendants remain excluded from directional navigation, but the controls associated with the [active outer item](#active-outer-item) participate in sequential focus navigation. Equivalent controls associated with inactive outer items do not create sequential entry points. `feed` implies this behavior.
 
 Each segment operates independently for certain behaviors:
 - **Guaranteed tab stop:** Each segment ensures exactly one tab-accessible focusgroup item. The proposed [`itemcontrols`](#proposed-itemcontrols) extension would additionally expose `focusgroup="none"` controls associated with the active item.
@@ -1229,7 +1230,7 @@ All other `focusgroup` items are not considered in sequential focus navigation o
 ____
 This algorithm ensures that each [focusgroup segment](#focusgroup-segments) has a single [guaranteed tab stop](#guaranteed-tab-stop), without the need for authors to manage `tabindex` values. Authors can use the `focusgroupstart` attribute to explicitly specify which element should receive focus when entering a focusgroup segment.
 
-The proposed `itemcontrols` changes to entry, sequential navigation, and memory are defined in the [item-controls extension](#proposed-sequential-entry-extension).
+The proposed `itemcontrols` changes to entry, sequential navigation, and memory are defined in the [`itemcontrols` extension](#proposed-sequential-entry-extension).
 
 When focus is within [native key conflict elements](#key-conflict-elements), immediate
 neighboring focusgroup items are automatically made available in the tab order to provide an
@@ -1256,7 +1257,7 @@ An `itemcontrols` focusgroup would maintain an **active outer item** while focus
 
 The selected behavior determines outer items before `itemcontrols` changes sequential navigation. Shipped linear behaviors use their managed focusgroup items; the proposed `feed` behavior uses its top-level semantic list items. Each opted-out control is then associated with its nearest containing outer item.
 
-The user agent computes **base segments** before selecting an active item. Associated controls do not create base segment boundaries, regardless of which item later becomes active. Excluded sequentially focusable content that is not associated with an outer item, plus independent nested focusgroups and top-layer subtrees, creates boundaries under the shared segment definition. The entry point selects one base segment; memory, `focusgroupstart`, and ordinary priority select an outer item in that segment. The selected item becomes active, and only its associated controls are then inserted into sequential order. This avoids using active-item filtering to decide the segment that selects the active item.
+The user agent computes **base segments** before selecting an active item. Associated controls do not create base segment boundaries, regardless of which item later becomes active. Other opted-out content, independent nested focusgroups, and top-layer subtrees create boundaries when they meet the shared segment condition. The entry point selects one base segment; memory, `focusgroupstart`, and ordinary priority select an outer item in that segment. The selected item becomes active, and only its associated controls are then inserted into sequential order. This avoids using active-item filtering to decide the segment that selects the active item.
 
 ### Proposed sequential-entry extension
 
@@ -1272,12 +1273,12 @@ These steps apply only to focusgroups that include `itemcontrols`; they do not c
 
 ```html
 <div role="toolbar" focusgroup="toolbar block itemcontrols" aria-label="Layers">
-  <div tabindex="0">
+  <div role="group" tabindex="0" aria-label="Background layer">
     <span>Background</span>
     <button type="button" focusgroup="none" aria-label="Toggle Background visibility">Hide</button>
     <button type="button" focusgroup="none" id="more-background" aria-label="More actions for Background">More</button>
   </div>
-  <div tabindex="0">
+  <div role="group" tabindex="0" aria-label="Foreground layer">
     <span>Foreground</span>
     <button type="button" focusgroup="none" aria-label="Toggle Foreground visibility">Hide</button>
     <button type="button" focusgroup="none" aria-label="More actions for Foreground">More</button>
@@ -1288,12 +1289,12 @@ These steps apply only to focusgroups that include `itemcontrols`; they do not c
 
 In this example:
 
-- Each focusable row (`tabindex="0"`) is an outer focusgroup item. The block axis moves directional navigation between rows and makes the target row active.
-- `focusgroup="none"` keeps each button out of directional navigation. Only the buttons associated with the active row participate in sequential focus navigation.
-- Tab from the active row moves into its first associated button. Sequential navigation then follows the associated buttons in their normal order.
-- Shift+Tab from the first associated button returns focus to the active row boundary. The focusgroup continues to remember that row as its active item.
-- If focus is on `#more-background`, one Tab press moves focus to the search input. The inactive **Foreground** row and its opted-out buttons are not considered for that sequential navigation step.
-- In an equivalent `focusgroup="toolbar block"` without `itemcontrols`, the opted-out buttons remain in sequential order and split the toolbar into segments. Tab from `#more-background` would continue into the next segment (the **Foreground** row and its buttons) instead of skipping to the search field.
+- Each focusable `group` is an outer focusgroup item representing one labeled layer. The block axis moves directional navigation between groups and makes the target group active.
+- `focusgroup="none"` keeps each button out of directional navigation. Only the buttons associated with the active group participate in sequential focus navigation.
+- Tab from the active group moves into its first associated button. Sequential navigation then follows the associated buttons in their normal order.
+- Shift+Tab from the first associated button returns focus to the active group boundary. The focusgroup continues to remember that group as its active item.
+- If focus is on `#more-background`, one Tab press moves focus to the search input. The inactive **Foreground** group and its opted-out buttons are not considered for that sequential navigation step.
+- In an equivalent `focusgroup="toolbar block"` without `itemcontrols`, the opted-out buttons remain in sequential order and split the toolbar into segments. Tab from `#more-background` would continue into the next segment (the **Foreground** group and its buttons) instead of skipping to the search field.
 
 The minimum `itemcontrols` model is:
 
