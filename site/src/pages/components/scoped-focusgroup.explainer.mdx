@@ -1221,7 +1221,7 @@ When a user navigates into a focusgroup using Tab or Shift+Tab, the user agent m
   - If the focusgroup has a **last focused item** and the [`nomemory`](#disabling-focusgroup-memory) token is not present, and the last focused item is within the current segment, select that item.
    - Otherwise, if an item within the segment has the `focusgroupstart` attribute, select the first such item in tree order, or if the items are also being managed by reading-flow, select the first such item in reading order.
    - Otherwise, if an item within the segment is **sequentially focusable** (e.g., has `tabindex="0"` or is a natively focusable element like `<button>`), select the first such item in tree order, or if the items are also being managed by reading-flow, select the first such item in reading order.
-   - Otherwise, select the first focusgroup item in tree order, or in reading order when the items are managed by `reading-flow`.
+   - Otherwise, select the first focusgroup item within the segment in tree order, or in reading order when the items are managed by `reading-flow`.
 
 Focus the selected item.
 
