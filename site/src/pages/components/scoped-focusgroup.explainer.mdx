@@ -441,12 +441,11 @@ Linear `focusgroup`s provide arrow key navigation among a _list_ of elements. Th
 Focusgroups consist of a **focusgroup definition** that establishes **focusgroup candidates** and
 **focusgroup items**. Focusgroup definitions manage the desired behavior for the associated
 focusgroup items. Focusgroup items are the elements that actually participate in the focusgroup
-(from the set of focusgroup candidates). Focusgroup candidates are all the elements under the scope
+(from the set of focusgroup candidates). Focusgroup candidates are the shadow-inclusive descendants under the scope
 of a focusgroup definition. The **focusgroup scope** consists of the element with the focusgroup
 definition and its shadow-inclusive descendants, excluding elements that have opted out and excluding subtrees rooted at elements in the [top layer](#top-layer-elements) (when computing ancestor focusgroup participation).
 
-The minimal focusgroup below demonstrates that the element declaring a focusgroup is also a
-focusgroup candidate and (in this case) the single focusgroup item.
+The element declaring a focusgroup is the owner, not one of its own candidates. In the minimal focusgroup below, the `<button>` is the sole candidate and item.
 
 ```html
 <div focusgroup="toolbar">
@@ -483,14 +482,15 @@ Note that the elements with `id=one`, `id=two`, and `id=three` can be reached vi
 
 ### Focusgroup segments
 
-A **focusgroup segment** is a contiguous group of focusgroup items that can be navigated without crossing any [opted-out elements](#opting-out) or [top-layer excluded subtrees](#top-layer-elements) that are participating in sequential focus navigation. An opted-out or excluded element is considered as participating in sequential focus navigation if:
-1. The element is opting out of a focusgroup via `focusgroup="none"`, is a descendant of such an element, or is in a [top-layer excluded subtree](#top-layer-elements).
-2. The element is focusable, i.e., it is either natively focusable or has a non-negative `tabindex`.
-3. The element has a negative tabindex, but currently has focus.
+A **focusgroup segment** is a contiguous run of focusgroup items that shares one entry point in sequential focus navigation. The following excluded content creates a boundary when it contains a sequentially focusable area:
 
-Note: Elements with `tabindex="-1"` that are not opted-out participate in focusgroup directional navigation when focused, but do not create segment boundaries since they are not participating in sequential focus navigation (unless currently focused, per condition 3 above).
+1. An element opting out through `focusgroup="none"` and its excluded descendants.
+2. An independent nested focusgroup.
+3. A [top-layer excluded subtree](#top-layer-elements).
 
-When one of these opted-out elements is between two focusgroup items, it divides the focusgroup into two segments, one segment on each side of the opted-out element.
+An element with negative `tabindex` is not sequentially focusable merely because it currently has focus, so it does not create a segment boundary on that basis.
+
+When excluded sequentially focusable content occurs between two focusgroup items, it divides the focusgroup into one segment on each side. Directional navigation may cross segments while skipping the excluded content; segments constrain sequential entry rather than directional reachability.
 
 Each segment operates independently for certain behaviors:
 - **Guaranteed tab stop:** Each segment ensures exactly one tab-accessible element.
@@ -516,8 +516,8 @@ The `focusgroup`'s memory is cleared if the last-focused item becomes non-focusa
 ### Guaranteed tab stop
 
 Focusgroups provide a special behavior when used in conjunction with sequential focus navigation
-("tab navigation"). Focusgroups ensure that **exactly one** focusgroup item will participate in
-sequential focus navigation per [segment](#focusgroup-segments), unless there are no focusable items.
+("tab navigation"). Focusgroups ensure that **exactly one focusgroup item** serves as the
+sequential entry point for each [segment](#focusgroup-segments), unless there are no focusable items.
 This behavior ensures that a `focusgroup` can always be entered via sequential focus navigation.
 [See below for further details](#adjustments-to-sequential-focus-navigation).
 
@@ -1026,8 +1026,8 @@ Example:
 
 ## Opting-out
 
-`focusgroup` definitions assigned to an element create `focusgroup` candidates that include
-the element itself and all its _shadow-inclusive descendant elements_. Any element within that
+`focusgroup` definitions assigned to an element create `focusgroup` candidates from
+its _shadow-inclusive descendant elements_. The declaring element is the owner and is not its own candidate. Any descendant within that
 `focusgroup` scope that is (or becomes) focusable will automatically become a `focusgroup` item
 belonging to its ancestor's `focusgroup`.
 
@@ -1208,15 +1208,18 @@ last-focused element in a `focusgroup`, a change to sequential focus navigation 
 
 When a user navigates into a focusgroup using Tab or Shift+Tab, the user agent must:
 
-#### 1. **Identify the focusgroup segment:** The set of `focusgroup` items that are reachable without crossing any [opted-out items](#opting-out) in tree order from the entry point.
+#### 1. **Identify the focusgroup segment:** Apply the shared [focusgroup segment](#focusgroup-segments) definition in sequential focus navigation order to select the segment adjacent to the entry point.
 
 #### 2. **Apply focus priority (first match wins):**
-  - If the focusgroup has a **last focused item** and the [`nomemory`](#disabling-focusgroup-memory) token is not present, and the last focused item is within the current segment, focus that item.
-   - Otherwise, if an item within the segment has the `focusgroupstart` attribute, focus the first such item in tree order, or if the items are also being managed by reading-flow, focus the first such item in reading order.
-   - Otherwise, if an item within the segment is **sequentially focusable** (e.g., has `tabindex="0"` or is a natively focusable element like `<button>`), focus the first such item in tree order, or if the items are also being managed by reading-flow, focus the first such item in reading order.
+  - If the focusgroup has a **last focused item** and the [`nomemory`](#disabling-focusgroup-memory) token is not present, and the last focused item is within the current segment, select that item.
+   - Otherwise, if an item within the segment has the `focusgroupstart` attribute, select the first such item in tree order, or if the items are also being managed by reading-flow, select the first such item in reading order.
+   - Otherwise, if an item within the segment is **sequentially focusable** (e.g., has `tabindex="0"` or is a natively focusable element like `<button>`), select the first such item in tree order, or if the items are also being managed by reading-flow, select the first such item in reading order.
+   - Otherwise, select the first focusgroup item in tree order, or in reading order when the items are managed by `reading-flow`.
+
+Focus the selected item.
 
 #### 3. **Update tab navigation:**
-All other `focusgroup` items are not considered in sequential focus navigation order. Memory is updated to be on the newly focused item if the [`nomemory`](#disabling-focusgroup-memory) token is not present.
+All other `focusgroup` items are not considered in sequential focus navigation order. If [`nomemory`](#disabling-focusgroup-memory) is absent, store memory against the selected item.
 ____
 This algorithm ensures that each [focusgroup segment](#focusgroup-segments) has a single [guaranteed tab stop](#guaranteed-tab-stop), without the need for authors to manage `tabindex` values. Authors can use the `focusgroupstart` attribute to explicitly specify which element should receive focus when entering a focusgroup segment.
 
