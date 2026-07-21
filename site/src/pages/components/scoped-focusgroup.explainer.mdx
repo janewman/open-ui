@@ -124,12 +124,12 @@ Specifying a specific item as the [start element](#the-focusgroupstart-attribute
 | [`nowrap`](#enabling-wrapping-behaviors) | Optional | Explicitly disable wrapping. Useful for overriding a behavior token's default `wrap` modifier (e.g., `focusgroup="tablist nowrap"`). Cannot be combined with `wrap`. |
 | [`nomemory`](#disabling-focusgroup-memory) | Optional | Disable restoring last-focused item on re-entry (memory is on by default). |
 | [`none`](#opting-out) | Standalone | Opt-out: exclude element and its subtree from ancestor focusgroup. Cannot be combined with any other token. |
-| [`itemcontrols`](#proposed-itemcontrols) | Proposed modifier; implied by `feed` | Would make `focusgroup="none"` descendants of the active item available to sequential focus navigation while skipping those associated with inactive items. |
-| [`feed`](#proposed-feed-focusgroups) | Proposed interactive-list behavior; working name | Would imply `itemcontrols`; its key and semantic model remain open. |
+| [`itemcontrols`](#v2-itemcontrols) | V2 modifier; implied by `feed` | Would make `focusgroup="none"` descendants of the active item available to sequential focus navigation while skipping those associated with inactive items. |
+| [`feed`](#v2-feed-focusgroups) | V2 interactive-list behavior; working name | Would imply `itemcontrols`; its key and semantic model remain open. |
 
 ## Focusgroup V1 and V2
 
-Focusgroup **V1** is the current linear design. It narrows the scope of the [original focusgroup explainer](https://github.com/openui/open-ui/blob/fdd348a/site/src/pages/components/focusgroup.explainer.mdx). **V2** covers the active new work — grid, `itemcontrols`, and `feed`. This draft also proposes the [`itemcontrols`](#proposed-itemcontrols) modifier for controls inside an active item and the provisional [`feed`](#proposed-feed-focusgroups) interactive-list behavior, whose final name and key model remain open.
+Focusgroup **V1** is the current linear design. It narrows the scope of the [original focusgroup explainer](https://github.com/openui/open-ui/blob/fdd348a/site/src/pages/components/focusgroup.explainer.mdx). **V2** covers the active new work — grid, `itemcontrols`, and `feed`. This draft also proposes the [`itemcontrols`](#v2-itemcontrols) modifier for controls inside an active item and the provisional [`feed`](#v2-feed-focusgroups) interactive-list behavior, whose final name and key model remain open.
 
 ### CSS activation is no longer being considered
 Focusgroup V1 and V2 define behavior through the HTML `focusgroup` attribute. CSS activation and CSS mappings are no longer being considered.
@@ -181,7 +181,7 @@ V1 linear focusgroup behavior tokens (APG alignment and minimum roles). All six 
 | `listbox` | Listbox | [`listbox`](https://www.w3.org/TR/wai-aria-1.2/#listbox) | [`option`](https://www.w3.org/TR/wai-aria-1.2/#option) | `block` | [APG Listbox](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/) |
 | `menu` | Menu | [`menu`](https://www.w3.org/TR/wai-aria-1.2/#menu) | [`menuitem`](https://www.w3.org/TR/wai-aria-1.2/#menuitem) | `block` `wrap` | [APG Menu / Menubar](https://www.w3.org/WAI/ARIA/apg/patterns/menu/) |
 | `menubar` | Menubar | [`menubar`](https://www.w3.org/TR/wai-aria-1.2/#menubar) | [`menuitem`](https://www.w3.org/TR/wai-aria-1.2/#menuitem) | `inline` `wrap` | [APG Menu / Menubar](https://www.w3.org/WAI/ARIA/apg/patterns/menu/) |
-| `feed` (proposed; working name) | (none; provisional interactive list) | (none) | (none) | `itemcontrols` | [Proposed feed focusgroups](#proposed-feed-focusgroups) |
+| `feed` (V2; working name) | (none; provisional interactive list) | (none) | (none) | `itemcontrols` | [V2 feed focusgroups](#v2-feed-focusgroups) |
 | `grid` (V2) | Grid (2-D) | [`grid`](https://www.w3.org/TR/wai-aria-1.2/#grid) | (TBD) | (TBD) | [APG Grid](https://www.w3.org/WAI/ARIA/apg/patterns/grid/) |
 
 #### Default modifiers
@@ -373,7 +373,7 @@ accessible by default by:
 - requiring no new screen reader features: the behaviors (roving tabindex, arrow + Home/End movement,
   optional wrap, last-focused memory) already function today when authored via JavaScript, `focusgroup`
   standardizes intent without introducing novel interaction semantics.
-  - For behaviors that use compatible composite widget roles, the owner and item semantics provide the existing signal for assistive technologies to use a ["Focus mode"](https://www.accessibility-developer-guide.com/knowledge/screen-readers/desktop/browse-focus-modes/). Proposed behaviors without such a role, such as a roleless interactive list, do not automatically trigger focus mode and need a separate key and assistive-technology interaction model.
+  - For behaviors that use compatible composite widget roles, the owner and item semantics provide the existing signal for assistive technologies to use a ["Focus mode"](https://www.accessibility-developer-guide.com/knowledge/screen-readers/desktop/browse-focus-modes/). V2 behaviors without such a role, such as a roleless interactive list, do not automatically trigger focus mode and need a separate key and assistive-technology interaction model.
 
 ### Non-goals
 
@@ -439,7 +439,7 @@ Linear `focusgroup`s provide arrow key navigation among a _list_ of elements. Th
 - `focusgroup="<behavior>"` (where `<behavior>` is one of the non-grid behaviors) defines a linear `focusgroup`.
 - The V2 `focusgroup="grid"` value defines a grid `focusgroup` (2-D navigation).
 
-The proposed [`itemcontrols`](#proposed-itemcontrols) modifier changes how a focusgroup treats controls inside an item; it does not define another navigation topology.
+The [`itemcontrols`](#v2-itemcontrols) modifier changes how a focusgroup treats controls inside an item; it does not define another navigation topology.
 
 Focusgroups consist of a **focusgroup definition** that establishes **focusgroup candidates** and
 **focusgroup items**. Focusgroup definitions manage the desired behavior for the associated
@@ -495,10 +495,10 @@ Current focus therefore makes an otherwise non-sequentially-focusable element, i
 
 When excluded content meeting this condition occurs between two focusgroup items, it divides the focusgroup into one segment on each side. Directional navigation may cross segments while skipping the excluded content; segments constrain sequential entry rather than directional reachability.
 
-The proposed `itemcontrols` behavior adds a scoped exception for `focusgroup="none"` descendants of an outer focusgroup item. Those descendants remain excluded from directional navigation, but the controls associated with the [active outer item](#active-outer-item) participate in sequential focus navigation. Equivalent controls associated with inactive outer items do not create sequential entry points. `feed` implies this behavior.
+The `itemcontrols` behavior adds a scoped exception for `focusgroup="none"` descendants of an outer focusgroup item. Those descendants remain excluded from directional navigation, but the controls associated with the [active outer item](#active-outer-item) participate in sequential focus navigation. Equivalent controls associated with inactive outer items do not create sequential entry points. `feed` implies this behavior.
 
 Each segment operates independently for certain behaviors:
-- **Guaranteed tab stop:** Each segment ensures exactly one tab-accessible focusgroup item. The proposed [`itemcontrols`](#proposed-itemcontrols) extension would additionally expose `focusgroup="none"` controls associated with the active item.
+- **Guaranteed tab stop:** Each segment ensures exactly one tab-accessible focusgroup item. The [`itemcontrols`](#v2-itemcontrols) extension would additionally expose `focusgroup="none"` controls associated with the active item.
 - **Sequential navigation:** Tab and Shift+Tab treat each segment as a separate focusgroup entry point.
 
 For example, if a focusgroup contains items A, B, C, D, E and item C opts-out and would participate in sequential focus navigation, the focusgroup would be split into two segments: [A, B] and [D, E]. Arrow key navigation can move freely across segments, skipping over the opted-out element C, but sequential focus navigation (Tab/Shift+Tab) will treat these as two separate tab stops.
@@ -523,7 +523,7 @@ The `focusgroup`'s memory is cleared if the last-focused item becomes non-focusa
 Focusgroups provide a special behavior when used in conjunction with sequential focus navigation
 ("tab navigation"). Focusgroups ensure that **exactly one focusgroup item** serves as the
 sequential entry point for each [segment](#focusgroup-segments), unless there are no focusable items.
-The proposed [`itemcontrols`](#proposed-itemcontrols) extension defines additional sequential access separately.
+The [`itemcontrols`](#v2-itemcontrols) extension defines additional sequential access separately.
 This behavior ensures that a `focusgroup` can always be entered via sequential focus navigation.
 [See below for further details](#adjustments-to-sequential-focus-navigation).
 
@@ -814,7 +814,7 @@ Focusgroups have the following additional features:
    last focused element was when focus leaves a `focusgroup`. By default `focusgroup`s remember that
    element and will restore the focus to that element when the `focusgroup` is re-entered via
    sequential focus navigation.
-- [`itemcontrols`](#proposed-itemcontrols) - preserve an outer focusgroup item as the directional-navigation target while managing sequential access to its `focusgroup="none"` controls. The proposed `feed` behavior implies this modifier.
+- [`itemcontrols`](#v2-itemcontrols) - preserve an outer focusgroup item as the directional-navigation target while managing sequential access to its `focusgroup="none"` controls. The `feed` behavior implies this modifier.
 
 Authors **specify** these feature options as space-separated token values in the `focusgroup`
 attribute.
@@ -1054,7 +1054,7 @@ To opt-out:
 
 ### Impact on sequential focus navigation
 
-When elements opt-out of a `focusgroup` using `focusgroup="none"`, they can effectively divide the focusgroup for sequential focus navigation purposes, creating multiple tab stops where the focusgroup would normally have only one. This happens because opted-out elements remain in the normal sequential focus navigation order, necessitating splitting the focusgroup into separate segments to ensure content is not skipped. The proposed [`itemcontrols`](#proposed-itemcontrols) behavior is an exception: opted-out controls associated with inactive outer items are omitted from sequential focus navigation.
+When elements opt-out of a `focusgroup` using `focusgroup="none"`, they can effectively divide the focusgroup for sequential focus navigation purposes, creating multiple tab stops where the focusgroup would normally have only one. This happens because opted-out elements remain in the normal sequential focus navigation order, necessitating splitting the focusgroup into separate segments to ensure content is not skipped. The [`itemcontrols`](#v2-itemcontrols) behavior is an exception: opted-out controls associated with inactive outer items are omitted from sequential focus navigation.
 
 Sequential focus navigation within each resulting segment follows the visual reading order established by CSS [`reading-flow`](#reading-flow) when applied to the container or relevant ancestors.
 
@@ -1230,13 +1230,13 @@ All other `focusgroup` items are not considered in sequential focus navigation o
 ____
 This algorithm ensures that each [focusgroup segment](#focusgroup-segments) has a single [guaranteed tab stop](#guaranteed-tab-stop), without the need for authors to manage `tabindex` values. Authors can use the `focusgroupstart` attribute to explicitly specify which element should receive focus when entering a focusgroup segment.
 
-The proposed `itemcontrols` changes to entry, sequential navigation, and memory are defined in the [`itemcontrols` extension](#proposed-sequential-entry-extension).
+The `itemcontrols` changes to entry, sequential navigation, and memory are defined in the [`itemcontrols` extension](#sequential-entry-extension).
 
 When focus is within [native key conflict elements](#key-conflict-elements), immediate
 neighboring focusgroup items are automatically made available in the tab order to provide an
 [escape mechanism](#escape-behavior-for-native-key-conflict-elements).
 
-## Proposed itemcontrols
+## V2 itemcontrols
 
 Chat messages, cards, and file-list items often contain several interactive descendants. A linear focusgroup treats every eligible focusable descendant as a focusgroup item unless a subtree opts out or establishes an independent nested focusgroup. Neither option lets the containing item remain one directional-navigation target while limiting sequential navigation to the controls inside the active item.
 
@@ -1255,13 +1255,13 @@ An `itemcontrols` focusgroup would maintain an **active outer item** while focus
 - Forward entry would focus the chosen outer-item boundary. Reverse entry would focus its last associated opted-out control, when present, while keeping the outer item active.
 - `nomemory` would disable persistence after focus leaves the group, but not the active state needed while focus remains inside it. A later entry would choose a new outer item using the no-memory entry rules.
 
-The selected behavior determines outer items before `itemcontrols` changes sequential navigation. Shipped linear behaviors use their managed focusgroup items; the proposed `feed` behavior uses its top-level semantic list items. Each opted-out control is then associated with its nearest containing outer item.
+The selected behavior determines outer items before `itemcontrols` changes sequential navigation. Linear behaviors use their managed focusgroup items; the `feed` behavior uses its top-level semantic list items. Each opted-out control is then associated with its nearest containing outer item.
 
 The user agent computes **base segments** before selecting an active item. Associated controls do not create base segment boundaries, regardless of which item later becomes active. Other opted-out content, independent nested focusgroups, and top-layer subtrees create boundaries when they meet the shared segment condition. The entry point selects one base segment; memory, `focusgroupstart`, and ordinary priority select an outer item in that segment. The selected item becomes active, and only its associated controls are then inserted into sequential order. This avoids using active-item filtering to decide the segment that selects the active item.
 
-### Proposed sequential-entry extension
+### Sequential-entry extension
 
-When `itemcontrols` is present, the following proposed steps extend the shared focusgroup entry algorithm:
+When `itemcontrols` is present, the following steps extend the shared focusgroup entry algorithm:
 
 1. Identify the base segment adjacent to the entry point, then apply the ordinary priority rules to eligible outer items in that segment. A remembered item and `focusgroupstart` therefore select an outer item, not one of its controls.
 2. Make the selected outer item active.
@@ -1306,7 +1306,7 @@ The minimum `itemcontrols` model is:
 | Independently scoped or top-layer descendant | Follows its existing scope | Follows its own segment and document order | Follows its own segment and document order |
 | Active outer item that is a native key-conflict element | Preserves the element's native key behavior | Makes the next outer item eligible, then follows normal sequential and segment order | Makes the previous outer item eligible, then follows normal sequential and segment order |
 
-Under the proposed model, the focusgroup retains memory of the active outer item while focus moves through its opted-out controls. Whether `itemcontrols` should also remember the last control, and how directional navigation resumes directly from a control, remain open design questions.
+Under this model, the focusgroup retains memory of the active outer item while focus moves through its opted-out controls. Whether `itemcontrols` should also remember the last control, and how directional navigation resumes directly from a control, remain open design questions.
 
 This modifier differs from existing scope mechanisms:
 
@@ -1538,9 +1538,9 @@ row cannot be honored because there is no "3rd cell" in that row).
 
 </details>
 
-## Proposed feed focusgroups
+## V2 feed focusgroups
 
-The behavior currently named `feed` is a candidate for vertically ordered interactive lists whose items may contain nested controls, such as chat threads, notification lists, file lists, and cards with actions. It would imply [`itemcontrols`](#proposed-itemcontrols), keeping opted-out controls associated with the active item available through sequential focus navigation while skipping controls associated with inactive items.
+The behavior currently named `feed` is a candidate for vertically ordered interactive lists whose items may contain nested controls, such as chat threads, notification lists, file lists, and cards with actions. It would imply [`itemcontrols`](#v2-itemcontrols), keeping opted-out controls associated with the active item available through sequential focus navigation while skipping controls associated with inactive items.
 
 The working name reflects an adjacent use case, not an automatic ARIA role mapping. This proposal defines no automatic `feed` or `article` role mapping or inference. Its final name, directional key set, wrapping behavior, loading model, and relationship to ARIA feeds all remain open.
 
@@ -1548,11 +1548,11 @@ If a true ARIA-feed behavior is considered later, it must build on existing nati
 
 ### Items and nested controls
 
-Under the current working model, a top-level item is a focusable element whose native or explicit `listitem` semantics are owned by the `focusgroup="feed"` list. An item in a nested list belongs to that nested list and is not promoted to a peer of the top-level items; nested lists therefore act as boundaries. Generic or presentational wrappers may intervene only when they preserve that semantic ownership. Authors mark nested controls with `focusgroup="none"` so they do not become top-level items. Because `feed` implies [`itemcontrols`](#proposed-itemcontrols), only opted-out controls associated with the active item participate in sequential focus navigation.
+Under the current working model, a top-level item is a focusable element whose native or explicit `listitem` semantics are owned by the `focusgroup="feed"` list. An item in a nested list belongs to that nested list and is not promoted to a peer of the top-level items; nested lists therefore act as boundaries. Generic or presentational wrappers may intervene only when they preserve that semantic ownership. Authors mark nested controls with `focusgroup="none"` so they do not become top-level items. Because `feed` implies [`itemcontrols`](#v2-itemcontrols), only opted-out controls associated with the active item participate in sequential focus navigation.
 
 No directional key behavior is specified yet. Native list semantics commonly keep assistive technologies in a reading mode where Up and Down are reading commands, so the proposal must resolve an assistive-technology-compatible key model before `feed` can define directional navigation.
 
-The following markup illustrates the proposed item and `itemcontrols` structure only. It is not a complete keyboard pattern, because the directional key model is unresolved.
+The following markup illustrates the item and `itemcontrols` structure only. It is not a complete keyboard pattern, because the directional key model is unresolved.
 
 ```html
 <!-- Illustrative structure; directional keys remain unresolved. -->
@@ -1663,7 +1663,7 @@ The grid-only values below belong to the V2 grid design, not V1.
 
 Behavior tokens: See the earlier Supported behaviors mapping table for the definitive list, minimum container roles, child inference notes, and [default modifiers](#default-modifiers). Explicit container and child roles always override any inference. Explicit modifiers always override default modifiers.
 
-***Proposed interactive list and item controls:***
+***V2 interactive list and item controls:***
 
 | Description | HTML syntax |
 |---|---|
