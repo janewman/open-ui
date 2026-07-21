@@ -180,7 +180,7 @@ Child role inference likewise only occurs when: (1) the container role was suppl
 
 The [ARIA in HTML specification](https://www.w3.org/TR/html-aria/#docconformance) defines which ARIA roles authors may use on each HTML element. Its [`button` entry](https://www.w3.org/TR/html-aria/#el-button) lists roles including `tab`, `radio`, the `menuitem` variants, and `gridcell` (currently marked there as a proposed addition). The focusgroup button exception follows that per-element list: it never infers a role that the specification does not allow on `<button>`, such as `article` or `row`.
 
-V1 linear focusgroup behavior tokens (APG alignment and minimum roles). All six produce the same linear navigation semantics — only semantic expectations, child inference, and default modifiers differ. The V2 `feed` row maps to the ARIA feed structure, and the V2 grid row is retained for the detailed grid design below:
+V1 linear focusgroup behavior tokens (APG alignment and minimum roles). All six produce the same linear navigation semantics — only semantic expectations, child inference, and default modifiers differ. The V2 `feed` row maps to the ARIA feed structure:
 
 | Behavior | APG Pattern | Minimum container role (when applied) | Minimum child role(s) (when applied) | Default modifiers | APG Pattern Link |
 |---|---|---|---|---|---|
