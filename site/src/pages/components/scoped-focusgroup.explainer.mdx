@@ -774,6 +774,8 @@ In this example:
 - Arrow key navigation follows the same order: Right arrow moves from Third → Second → First
 - Pressing Right Arrow moves focus visually to the right, matching user expectations
 
+For a `grid` focusgroup, the row and column coordinates follow [order-modified document order](https://drafts.csswg.org/css-display-4/#order-modified-document-order) — the visual order produced by CSS `order` — further adjusted by `reading-flow` and `reading-order` when present. Grid ownership still comes from HTML flat-tree ancestry: `order` and `reading-flow` never change which element is a row or cell, only the sequence of rows and of cells within a row. `order` affects visual order and `reading-flow` adjusts reading and sequential order; the grid intentionally uses their combined result for its directional coordinates, so inline and block movement, the row and grid extents, row-major traversal, and wrap or flow all track the visual layout.
+
 #### ARIA orientation
 
 The `aria-orientation` attribute indicates whether a widget's orientation is horizontal, vertical, or undefined. Focusgroup doesn't automatically infer or set `aria-orientation` from `inline`/`block` tokens.
@@ -1031,9 +1033,9 @@ A `grid` focusgroup configures each edge independently. The inline-axis modifier
 
 - **Wrap** keeps movement within the same row or column, returning to its opposite end.
 - **Flow** carries movement to the adjacent row or column. With `row-flow`, passing the inline-end of a row continues at the first cell of the next row, and passing the inline-start continues at the last cell of the previous row; `col-flow` does the same for block movement across columns. The outermost continuation wraps around: with `row-flow`, moving past the last cell of the last row returns to the first cell of the first row; with `col-flow`, moving past the last row of the last column returns to the first row of the first column.
-- **Hard edge** (the default) stops movement. Focus does not move and the user agent does not consume the key.
+- **Hard edge** (the default) stops movement. Focus does not move and the operation is not consumed.
 
-Wrapping and flow scan through [targetless cells](#cell-coordinates-and-directional-targets) exactly as ordinary movement does, stopping on the first eligible target. If a scan returns to the starting target without finding another eligible target, focus does not move and the key is not consumed.
+Wrapping and flow scan through [targetless cells](#cell-coordinates-and-directional-targets) exactly as ordinary movement does, stopping on the first eligible target. If a scan returns to the starting target without finding another eligible target, focus does not move and the operation is not consumed.
 
 `nowrap` forces hard edges on both axes and takes precedence over `wrap`, `flow`, and the axis-specific modifiers. Specifying conflicting modifiers for the same axis — `row-wrap` with `row-flow`, or `col-wrap` with `col-flow` (including the combinations implied by pairing `wrap` with `flow`) — is an author error; the affected axis falls back to a hard edge. This mirrors the linear rule that a `wrap`/`nowrap` conflict is an author error.
 
@@ -1413,7 +1415,7 @@ A mutation does not move focus solely to repair association state. If focus rema
 
 ## V2 grid focusgroups
 
-The `grid` behavior provides 2-dimensional directional navigation for static structures whose rows and columns have semantic meaning. Inline-direction commands move among eligible targets in one row. Block-direction commands preserve the current column while moving among rows.
+The `grid` behavior provides 2-dimensional directional navigation for structures whose rows and columns have semantic meaning. Inline-direction commands move among eligible targets in one row. Block-direction commands preserve the current column while moving among rows.
 
 `grid` has one behavior token and one grid modifier:
 
@@ -1430,24 +1432,21 @@ The grid owner is not a coordinate or directional target. A focusable owner woul
 
 ### Applicability to tabular data
 
-Grid navigation follows the semantic structure of the document, not a grid-like visual presentation created by CSS. A wrapping list of contact cards, responsive icon picker, or masonry layout may form temporary visual rows, but its data model remains a list. Treating those rows as semantic grid rows can make block-direction navigation jump to an arbitrary item after reflow. Such content retains list semantics and uses linear navigation.
+Grid behavior is for **composite widgets** whose row and column relationships are semantically meaningful — the ARIA [`grid`](https://www.w3.org/TR/wai-aria-1.2/#grid) pattern, as distinct from the static [`table`](https://www.w3.org/TR/wai-aria-1.2/#table) pattern. Per the [APG grid pattern](https://www.w3.org/WAI/ARIA/apg/patterns/grid/), a grid exposes a single tab stop with author-managed roving focus, while a table keeps every control in the page tab sequence. Use `grid` only when that composite, single-tab-stop focus model is intended.
 
-Authors use `grid` only when row and column relationships remain meaningful independently of layout. The initial model validates only the mounted flat-tree topology and requires it to be rectangular and spanless:
+Grid coordinates come from the document's semantic structure, not from a grid-like visual presentation. Content that is merely laid out in a grid — a wrapping list of cards, a responsive icon picker, a masonry layout — stays a list and uses linear navigation. A visual grid-like layout alone does not create semantic grid coordinates.
 
-* Every row has the same number of semantic cells.
-* Each semantic cell occupies one coordinate, including a cell without an eligible target.
-* No cell uses native or ARIA row or column spans.
-* `aria-rowcount`, `aria-colcount`, `aria-rowindex`, `aria-colindex`, or similar metadata must not indicate gaps, offsets, or unmounted rows or cells.
+The APG grid pattern distinguishes **data grids** (interactive or editable tabular data) from **layout grids** (grouping widgets to shorten the tab sequence). APG allows optional wrapping for layout grids but warns that wrapping is disorienting in a data grid, especially for assistive-technology users. Because this proposal makes wrapping explicit, keep the default hard edges for data grids and reserve [`wrap` or `flow`](#grid-wrapping-and-flow) for layout grids where wrapping aids navigation.
 
-Hidden or inert structural rows and cells are excluded before rectangularity is checked. Ragged rows, spans, virtualized or non-contiguous indexed topology, `treegrid`, column-major organization, and directional coordinates derived from `reading-flow` are deferred. `reading-flow` can still affect sequential focus navigation. Unsupported shapes follow the [invalid-grid fallback](#invalid-grid-structures).
-
-After excluding elements that are not being rendered or are in an inert subtree, let the supported topology contain _R_ rows and _C_ cells per row. _R_ and _C_ must both be greater than zero. Effective native and ARIA row or column spans must equal `1`. If `aria-rowcount` or `aria-colcount` is present, its value must equal _R_ or _C_. If row or cell indices are present, they must match the corresponding one-based flat-tree coordinates without gaps or offsets. Unknown counts, invalid values, mismatches, or attributes that indicate unmounted topology make the grid unsupported. `aria-hidden` alone does not remove a structural coordinate from the DOM topology.
+The structural requirements for a supported grid, and the behavior when they are not met, are specified in [Ownership and order](#ownership-and-order), [Cell coordinates and directional targets](#cell-coordinates-and-directional-targets), and [Invalid grid structures](#invalid-grid-structures).
 
 ### Ownership and order
 
-The user agent determines all grid ownership, ancestry, direct-child relationships, paths, and order in the CSS flat tree. Open and closed shadow roots follow the same user-agent traversal rules; assigned nodes and fallback content follow flat-tree order, and unassigned light-DOM children are absent. The nearest parsed focusgroup owner owns a candidate structure. An independent nested focusgroup, a nested grid owner, a `focusgroup="none"` subtree, and a top-layer subtree delimit the outer grid's scope. Top-layer exclusion is applied after flat-tree ownership.
+The user agent determines all grid ownership, ancestry, direct-child relationships, and paths in the CSS flat tree. Open and closed shadow roots follow the same user-agent traversal rules; assigned nodes and fallback content follow flat-tree ownership, and unassigned light-DOM children are absent. The nearest parsed focusgroup owner owns a candidate structure. An independent nested focusgroup, a nested grid owner, a `focusgroup="none"` subtree, and a top-layer subtree delimit the outer grid's scope. Top-layer exclusion is applied after flat-tree ownership. Row and column *order* follows [order-modified document order adjusted by `reading-flow`](#reading-flow), not raw flat-tree order; ownership is unaffected by `order` and `reading-flow`.
 
 Grid topology is a structural property of the HTML, not a projection of the accessibility tree. The user agent classifies rows and cells from the markup — a native table in [automatic mode](#automatic-semantic-topology), or `focusgrouprow` markers and their direct flat-tree element children in [manual mode](#manual-row-enrollment) — and never reads authored ARIA roles or `ElementInternals` defaults to decide the topology. The `grid`, `row`, and `gridcell` roles are a one-way output of that structure, applied under the shared [minimum-role precedence](#behavior--role-mapping-and-precedence); explicit roles and non-generic native semantics are preserved but do not redefine topology.
+
+A supported grid is rectangular and spanless: every row has the same number of cells, each cell (including a targetless one) occupies exactly one coordinate, and no cell spans rows or columns. Hidden or inert structural rows and cells are excluded before this check. Ragged rows, spans, virtualized or indexed topology, `treegrid`, and column-major organization are deferred and follow the [invalid-grid fallback](#invalid-grid-structures).
 
 A row or cell cannot belong to more than one grid. A row cannot contain another row owned by the same grid, and a cell cannot contain another cell owned by the same grid. A nested focusgroup inside a cell remains an independent scope under the existing nesting rules.
 
@@ -1549,21 +1548,24 @@ What to notice:
 
 ### Grid directional navigation
 
-The grid owner's computed writing mode and direction map physical arrow keys to inline-start, inline-end, block-start, and block-end. The resulting commands operate as follows:
+Grid navigation is defined as a set of abstract **directional operations**, following the same [input-modality abstraction](#modifier-keys) as linear focusgroups: moving focus by spatial direction is the core operation, and mapping a specific input device onto it is the user agent's responsibility. The grid owner's computed writing mode and direction determine the inline and block axes.
 
-| Command | Result |
+| Directional operation | Result |
 |---|---|
 | Inline-start or inline-end | Moves to the previous or next eligible target in the current row, scanning through targetless cells; at a row edge, applies the [inline wrap or flow](#grid-wrapping-and-flow) setting. |
 | Block-start or block-end | Moves through the current column to the previous or next eligible target, scanning through targetless cells; at a column edge, applies the [block wrap or flow](#grid-wrapping-and-flow) setting. |
-| Home or End | Moves to the first or last eligible target in the current row. |
-| Ctrl+Home or Ctrl+End | Moves to the first or last eligible target in row-major order. |
-| Page Up or Page Down | Not handled by grid focusgroup behavior. |
+| Row start or row end | Moves to the first or last eligible target in the current row. |
+| Grid start or grid end | Moves to the first or last eligible target in row-major order. |
 
-Every row has the same number of cells, so the initial shape has no missing coordinate slots. By default both axes have hard edges; the [wrapping and flow modifiers](#grid-wrapping-and-flow) can wrap movement to the opposite end of the same row or column, or flow it into an adjacent row or column. At a hard edge, or when a wrap or flow scan finds no other eligible target in the requested direction, focus does not move and the user agent does not consume the key for grid focusgroup behavior.
+User agents MAY map keyboard commands to these operations — for example, Arrow keys to inline and block movement, Home and End to the row start and end, and Ctrl+Home and Ctrl+End to the grid start and end. These key bindings are optional user-agent mappings; the abstract directional operations are the normative core, and other input devices (D-pads, game controllers, assistive technologies) map their own controls. Grid focusgroup behavior does not define a Page Up or Page Down operation.
 
-After `keydown` propagation, grid dispatch continues only if the event was not canceled and focus remains on the original focused area. It recognizes unmodified Arrow, Home, and End keys, plus exactly Ctrl+Home and Ctrl+End; all other modifier combinations remain available to platform or author behavior. If the focused element has a native default action for that exact key and modifier combination, grid navigation does not run.
+Every row has the same number of cells, so the initial shape has no missing coordinate slots. By default both axes have hard edges; the [wrapping and flow modifiers](#grid-wrapping-and-flow) can wrap movement to the opposite end of the same row or column, or flow it into an adjacent row or column. At a hard edge, or when a wrap or flow scan finds no other eligible target in the requested direction, focus does not move and the operation is not consumed.
 
-The user agent then resolves the nearest parsed focusgroup owner. Invalid owners remain boundaries and do not delegate to an ancestor. For a valid grid, the user agent resolves the source coordinate from either the focused eligible target or a focused negative-`tabindex` source-only element, maps physical Arrow keys using the grid owner's writing mode, builds one current topology snapshot, and selects an eligible provider target. It rechecks the destination immediately before invoking the HTML focusing steps.
+Grid navigation moves focus only; like the linear behaviors it does not change selection, activation, expansion, or content loading.
+
+When a user agent maps keyboard input to a grid operation, dispatch continues after `keydown` propagation only if the event was not canceled and focus remains on the original focused area. A user agent MAY map the unmodified Arrow, Home, and End keys, plus Ctrl+Home and Ctrl+End; all other modifier combinations remain available to platform or author behavior. If the focused element has a native default action for that exact key and modifier combination, grid navigation does not run.
+
+The user agent then resolves the nearest parsed focusgroup owner. Invalid owners remain boundaries and do not delegate to an ancestor. For a valid grid, the user agent resolves the source coordinate from either the focused eligible target or a focused negative-`tabindex` source-only element, maps the requested direction using the grid owner's writing mode, builds one current topology snapshot, and selects an eligible provider target. It rechecks the destination immediately before invoking the HTML focusing steps.
 
 Navigation succeeds only if the destination becomes the document's focused area. Only then does grid focusgroup behavior consume the command. At a hard edge, for a native key conflict, when focus changed during dispatch, or when focusing fails, grid focusgroup behavior leaves the uncanceled command available to normal scrolling, editing, or other default behavior. If `preventDefault()` canceled the event, grid navigation does not run and the canceled default behavior remains canceled.
 
@@ -1578,7 +1580,7 @@ A grid owner has one focusgroup memory; rows and `focusgrouprow` markers do not 
 
 The selected target is the grid segment's single sequential entry target. `nomemory` disables restoration under the existing rules. Grid memory updates only when an eligible provider target receives focus. An associated `itemcontrols` control maps back to its active outer grid target; focusing an excluded, nested, or otherwise non-target descendant does not replace the prior grid memory.
 
-`focusgroupstart` on a row, wrapper, targetless cell, negative-`tabindex` element, or otherwise ineligible descendant does not make that element a grid target. `reading-flow` may affect sequential order, but it does not alter the row and column coordinates used by directional navigation.
+`focusgroupstart` on a row, wrapper, targetless cell, negative-`tabindex` element, or otherwise ineligible descendant does not make that element a grid target. Sequential entry, directional navigation, and memory all use the same [coordinate order](#reading-flow) — order-modified document order adjusted by `reading-flow` — so `order` and `reading-flow` move focus consistently across both navigation modes.
 
 When rows, cells, attributes, focusability, rendering, slot assignment, or scope boundaries change, the user agent marks the owner topology dirty. The general memory-clearing rules continue to apply. A mutation that might make the remembered element cease to be an eligible provider target immediately revalidates or conservatively clears that memory. This includes negative `tabindex`, hiding, disabling, inertness, removal, exclusion, ownership changes, target-selection ambiguity, and transient grid invalidity. Restoring eligibility later does not restore cleared memory. Before every directional command, sequential-entry operation, or sequential-focus query involving the owner, the user agent rebuilds one immutable topology snapshot from the current flat tree and revalidates all remaining state. Implementations may cache snapshots only when the result is behaviorally equivalent. A mutation does not move focus solely because the topology or memory changed.
 
@@ -1646,14 +1648,6 @@ The key model for directional navigation between articles remains an [open quest
 ### Dynamic content
 
 When articles are inserted, removed, hidden, disabled, or made inert, a `feed` focusgroup updates its item set and applies the [active-item invalidation](#active-item-invalidation) rules before the next relevant sequential operation. Virtualized feeds expose only their rendered articles to focusgroup navigation; the focusgroup does not request or load additional content — loading and `aria-busy` management remain author responsibilities per the [APG feed contract](https://www.w3.org/WAI/ARIA/apg/patterns/feed/). The exact key model and its interaction with loading remain [open questions](#open-questions).
-
-## Additional keyboard support
-
-Linear focusgroup provides directional navigation, and Chromium implements Home/End movement. On macOS, Home and End can still scroll before focusgroup handles them; [Chromium change 8059345](https://chromium-review.googlesource.com/c/chromium/src/+/8059345) tracks the fix.
-
-The grid key set is defined in [Grid directional navigation](#grid-directional-navigation). Home and End move to the first and last eligible targets in the current row. Ctrl+Home and Ctrl+End move to the first and last eligible targets in row-major order. Grid focusgroup behavior does not handle Page Up or Page Down.
-
-The grid and feed behaviors do not change selection, activation, expansion, or content-loading behavior.
 
 ## Authoring guidance
 1. Place the behavior token first for readability: `focusgroup="tablist"`, `focusgroup="toolbar wrap"`. Order is not significant, but a consistent convention helps readers.
