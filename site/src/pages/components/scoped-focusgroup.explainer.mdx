@@ -134,7 +134,7 @@ Specifying a specific item as the [start element](#the-focusgroupstart-attribute
 | Attribute | Applies to | What it does |
 |---|---|---|
 | [`focusgroupstart`](#the-focusgroupstart-attribute) | An item in any focusgroup | Marks the item that receives focus on first sequential entry. Reflected by the `focusGroupStart` IDL property. |
-| [`focusgrouprow`](#manual-row-enrollment) | Every semantic row of a `grid` `manual` owner | Enrolls the row in that owner's manual topology and, on a generic element, contributes a one-way inferred `row` role. Reflected by the `focusGroupRow` IDL property. It never creates a focusgroup, segment, memory, or nested scope. |
+| [`focusgrouprow`](#manual-row-enrollment) | Every semantic row of a `grid manual` owner | Enrolls the row in that owner's manual topology and, on a generic element, contributes a one-way inferred `row` role. Reflected by the `focusGroupRow` IDL property. It never creates a focusgroup, segment, memory, or nested scope. |
 
 ## Focusgroup V1 and V2
 
@@ -1444,7 +1444,7 @@ The structural requirements for a supported grid, and the behavior when they are
 
 The user agent determines all grid ownership, ancestry, direct-child relationships, and paths in the CSS flat tree. Open and closed shadow roots follow the same user-agent traversal rules; assigned nodes and fallback content follow flat-tree ownership, and unassigned light-DOM children are absent. The nearest parsed focusgroup owner owns a candidate structure. An independent nested focusgroup, a nested grid owner, a `focusgroup="none"` subtree, and a top-layer subtree delimit the outer grid's scope. Top-layer exclusion is applied after flat-tree ownership. Row and column *order* follows [order-modified document order adjusted by `reading-flow`](#reading-flow), not raw flat-tree order; ownership is unaffected by `order` and `reading-flow`.
 
-Grid topology is a structural property of the HTML, not a projection of the accessibility tree. The user agent classifies rows and cells from the markup — a native table in [automatic mode](#automatic-semantic-topology), or `focusgrouprow` markers and their direct flat-tree element children in [manual mode](#manual-row-enrollment) — and never reads authored ARIA roles or `ElementInternals` defaults to decide the topology. The `grid`, `row`, and `gridcell` roles are a one-way output of that structure, applied under the shared [minimum-role precedence](#behavior--role-mapping-and-precedence); explicit roles and non-generic native semantics are preserved but do not redefine topology.
+Grid topology is a structural property of the HTML, not a projection of the accessibility tree. The user agent classifies rows and cells from the markup — a native table in [automatic mode](#automatic-semantic-topology), or `focusgrouprow` markers and their direct flat-tree element children in [manual mode](#manual-row-enrollment) — and never reads authored ARIA roles or `ElementInternals` defaults to decide the topology. The inferred `grid`, `row`, and `gridcell` roles are a one-way output of that structure (see [Behavior → role mapping and precedence](#behavior--role-mapping-and-precedence)).
 
 A supported grid is rectangular and spanless: every row has the same number of cells, each cell (including a targetless one) occupies exactly one coordinate, and no cell spans rows or columns. Hidden or inert structural rows and cells are excluded before this check. Ragged rows, spans, virtualized or indexed topology, `treegrid`, and column-major organization are deferred and follow the [invalid-grid fallback](#invalid-grid-structures).
 
@@ -1586,7 +1586,7 @@ When rows, cells, attributes, focusability, rendering, slot assignment, or scope
 
 ### Invalid grid structures
 
-A `focusgrouprow` marker on an element with non-generic, non-`row` semantics, a malformed row or cell relationship, multiple eligible descendants in a nonfocusable cell, a focusable non-target descendant, an incompatible owner role, or an unsupported shape (ragged, spanning, or otherwise non-rectangular) makes the grid invalid. In that state, **grid focusgroup behavior is ignored**: directional key handling, memory, sequential-entry collapse, segment behavior, and any focusgroup inference for that grid do not run.
+A `focusgrouprow` marker on an element with non-generic, non-`row` semantics, a malformed row or cell relationship, multiple eligible descendants in a nonfocusable cell, a focusable non-target descendant, an incompatible owner role, or an unsupported shape (ragged, spanning, or otherwise non-rectangular) makes the grid invalid. In that state, **grid focusgroup behavior is ignored**: directional navigation, memory, sequential-entry collapse, segment behavior, and any focusgroup inference for that grid do not run.
 
 Ignoring grid focusgroup behavior never makes content inert. Normal DOM focus, sequential focus navigation, element interaction, authored roles, native semantics, and custom-element default semantics remain in effect. User agents should provide diagnostics for invalid grid markup; the diagnostic surface remains an [open question](#open-questions).
 
@@ -1748,7 +1748,7 @@ Behavior tokens: See the earlier Supported behaviors mapping table for the defin
 
 | Description | HTML syntax |
 |---|---|
-| Static 2-D grid over a native table (automatic topology) | `grid` |
+| 2-D grid over a native table (automatic topology); implies `itemcontrols` | `grid` |
 | Grid modifier: manual row enrollment for generic markup | `manual` (used as `focusgroup="grid manual"`) |
 
 Companion attributes (not `focusgroup` tokens):
@@ -1778,7 +1778,7 @@ Companion attributes (not `focusgroup` tokens):
 
 | Description | HTML syntax | Applies to |
 |---|---|---|
-| Behavior default (hard edges on a grid) | (unspecified value) | Linear and grid behaviors; the `feed` wrapping model remains open |
+| Behavior default (hard edges on a grid) | (unspecified value) | Linear behaviors and `grid`; the `feed` wrapping model remains open |
 | Wrap end→start (grid: within the same row and column) | `wrap` | Linear and grid (grid = `row-wrap col-wrap`) |
 | No wrap / hard edges (explicit, overrides default) | `nowrap` | Linear and grid |
 | Flow into the adjacent row and column | `flow` | `grid` (= `row-flow col-flow`) |
