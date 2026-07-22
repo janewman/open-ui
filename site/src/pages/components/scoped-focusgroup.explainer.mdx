@@ -790,7 +790,7 @@ The `aria-orientation` attribute indicates whether a widget's orientation is hor
 
 Focusgroup defines an abstract **directional navigation** operation — moving focus up, down, left, or right within the [focusgroup scope](#focusgroup-concepts). It does not require a specific input device. As noted in the [introduction](#introduction), arrow keys are one common way to trigger directional navigation, but the same operation can be driven by D-pads, remote controls, game controllers, gesture recognizers, or touch-based assistive technologies. Mapping platform input onto the directional-navigation operation is the user agent's responsibility.
 
-For keyboard input specifically, user agents are expected to suppress focusgroup directional navigation when an arrow key is pressed together with a modifier key (Ctrl, Alt, Meta, or Shift). This preserves modifier+arrow combinations for their established platform-specific behaviors. Other input modalities typically lack an equivalent "modifier" concept, but if one exists, the user agent's mapping for those modalities determines when directional navigation is triggered.
+For keyboard input specifically, user agents MAY map unmodified arrow keys to focusgroup directional navigation while leaving modifier+arrow combinations (Ctrl, Alt, Meta, or Shift) to their established platform-specific behaviors. Other input modalities typically lack an equivalent "modifier" concept, but if one exists, the user agent's mapping for those modalities determines when directional navigation is triggered.
 
 #### CSS spatial navigation
 
@@ -857,7 +857,7 @@ Focusgroups have the following additional features:
    last focused element was when focus leaves a `focusgroup`. By default `focusgroup`s remember that
    element and will restore the focus to that element when the `focusgroup` is re-entered via
    sequential focus navigation.
-- [`itemcontrols`](#v2-itemcontrols) - preserve an outer focusgroup item as the directional-navigation target while managing sequential access to its `focusgroup="none"` controls. The `feed` behavior implies this modifier.
+- [`itemcontrols`](#v2-itemcontrols) - preserve an outer focusgroup item as the directional-navigation target while managing sequential access to its `focusgroup="none"` controls. The `feed` and `grid` behaviors imply this modifier.
 
 Authors **specify** these feature options as space-separated token values in the `focusgroup`
 attribute.
@@ -1479,7 +1479,7 @@ What to notice:
 
 `focusgrouprow` is structural: it never establishes a focusgroup owner or definition, nested scope, focusgroup segment, or memory. On a generic element it contributes a one-way inferred `row` role under the shared [minimum-role precedence](#behavior--role-mapping-and-precedence); on an element with explicit or non-generic native `row` semantics, that existing role is preserved. Cells are not marked with a `focusgroupcell` attribute: each direct element child of a marked row is a cell coordinate, and a generic cell is exposed one-way as `gridcell`.
 
-The `focusgrouprow` marker locates rows explicitly, so a marked row may sit beneath nonfocusable generic wrappers in the owner's flat-tree subtree. Each cell, however, is a direct flat-tree element child of its marked row; manual mode does not search through cell wrappers. Focusable or otherwise non-generic wrappers around a row remain structural barriers so keyboard topology cannot diverge from the accessible grid.
+The `focusgrouprow` marker locates rows explicitly, so a marked row may sit beneath nonfocusable wrappers in the owner's flat-tree subtree. Each cell, however, is a direct flat-tree element child of its marked row; manual mode does not search through cell wrappers. A focusable wrapper around a row remains a structural barrier because it would otherwise be an unmanaged focusable descendant of the grid.
 
 An owned row without the `focusgrouprow` marker, or a marked row with a malformed cell structure, makes the manual topology invalid; the user agent does not fall back to automatic discovery. A `focusgrouprow` marker inside a nested owner, a `focusgroup="none"` subtree, or a top-layer subtree is outside the outer grid's ownership and does not enroll a row in that outer grid.
 
@@ -1586,7 +1586,7 @@ When rows, cells, attributes, focusability, rendering, slot assignment, or scope
 
 ### Invalid grid structures
 
-A `focusgrouprow` marker on an element with non-generic, non-`row` semantics, a malformed row or cell relationship, multiple eligible descendants in a nonfocusable cell, a focusable non-target descendant, an incompatible owner role, or an unsupported shape (ragged, spanning, or otherwise non-rectangular) makes the grid invalid. In that state, **grid focusgroup behavior is ignored**: directional navigation, memory, sequential-entry collapse, segment behavior, and any focusgroup inference for that grid do not run.
+A misplaced `focusgrouprow` marker, a malformed row or cell relationship, multiple eligible descendants in a nonfocusable cell, a focusable non-target descendant, or an unsupported shape (ragged, spanning, or otherwise non-rectangular) makes the grid invalid. In that state, **grid focusgroup behavior is ignored**: directional navigation, memory, sequential-entry collapse, segment behavior, and any focusgroup inference for that grid do not run.
 
 Ignoring grid focusgroup behavior never makes content inert. Normal DOM focus, sequential focus navigation, element interaction, authored roles, native semantics, and custom-element default semantics remain in effect. User agents should provide diagnostics for invalid grid markup; the diagnostic surface remains an [open question](#open-questions).
 
@@ -1687,7 +1687,7 @@ approaches were considered.
 
 <p class="question">How should a future grid extension represent ragged rows, row and column spans, hidden cells, virtualized content, and indexed topology while preserving a stable current coordinate?</p>
 
-<p class="question">Which diagnostics should user agents expose for incompatible grid owner roles, misplaced `focusgrouprow`, partial manual enrollment, unsupported shapes, and malformed row, cell, or target structure?</p>
+<p class="question">Which diagnostics should user agents expose for misplaced `focusgrouprow`, partial manual enrollment, unsupported shapes, and malformed row, cell, or target structure?</p>
 
 <p class="question">Should a future target-selection mode support multiple eligible descendants in a nonfocusable cell, and if so, how can it avoid ambiguous or unstable target choice?</p>
 
