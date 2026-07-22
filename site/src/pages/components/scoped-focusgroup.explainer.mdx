@@ -120,12 +120,13 @@ Specifying a specific item as the [start element](#the-focusgroupstart-attribute
 |-------|-----------|--------------|
 | `<behavior>` | Yes (unless using [`none`](#opting-out)) | Token describing the intended behavior. See: [Supported behaviors](#supported-behaviors). Some behavior tokens carry [default modifiers](#default-modifiers) (e.g., `tablist` defaults to `inline` `wrap`). |
 | [`inline`](#limiting-linear-focusgroup-directionality) / [`block`](#limiting-linear-focusgroup-directionality) | Optional | Restrict arrow navigation to that logical axis. Omit to allow both axes (unless a [default modifier](#default-modifiers) supplies one). |
-| [`wrap`](#enabling-wrapping-behaviors) | Optional | Loops end→start and start→end (some behavior tokens enable this by [default](#default-modifiers)). |
-| [`nowrap`](#enabling-wrapping-behaviors) | Optional | Explicitly disable wrapping. Useful for overriding a behavior token's default `wrap` modifier (e.g., `focusgroup="tablist nowrap"`). Cannot be combined with `wrap`. |
+| [`wrap`](#enabling-wrapping-behaviors) | Optional | Linear: loops end→start and start→end. Grid: wraps within the same row and column (`row-wrap col-wrap`). Some behavior tokens enable `wrap` by [default](#default-modifiers). |
+| [`nowrap`](#enabling-wrapping-behaviors) | Optional | Explicitly hard edges. Overrides a behavior token's default `wrap`, and on a grid overrides `wrap`/`flow`. Cannot be combined with `wrap`. |
 | [`nomemory`](#disabling-focusgroup-memory) | Optional | Disable restoring last-focused item on re-entry (memory is on by default). |
 | [`none`](#opting-out) | Standalone | Opt-out: exclude element and its subtree from ancestor focusgroup. Cannot be combined with any other token. |
 | [`grid`](#v2-grid-focusgroups) | V2 2-D behavior | Provides 2-D directional navigation over a native HTML table structure. Pair with [`manual`](#manual-row-enrollment) for generic markup. |
 | [`manual`](#manual-row-enrollment) | V2 grid modifier | Used as `focusgroup="grid manual"`. Enrolls every semantic row with the `focusgrouprow` attribute instead of discovering rows from a native table. |
+| [`flow`, `row-wrap`, `col-wrap`, `row-flow`, `col-flow`](#grid-wrapping-and-flow) | Optional grid modifiers | Configure per-axis grid edges: wrap within the same row/column, or flow into the adjacent row/column. |
 | [`itemcontrols`](#v2-itemcontrols) | V2 modifier; implied by `feed` and `grid` | Adds controls associated with the active outer item to sequential focus navigation and skips controls associated with inactive items. |
 
 `focusgroupstart` and `focusgrouprow` are boolean structural companion attributes, not `focusgroup` tokens. Each marks an individual element and is reflected by an IDL property:
@@ -843,7 +844,7 @@ Focusgroups have the following additional features:
 
 - [Wrap-around semantics](#enabling-wrapping-behaviors) - what to do when attempting to move past
    the end of a `focusgroup`. The default/initial value is `nowrap`, which means that focus is
-   not moved past the ends of a `focusgroup` with the arrow keys. The `grid` behavior defaults to hard edges.
+   not moved past the ends of a `focusgroup` with the arrow keys. The `grid` behavior defaults to hard edges and accepts per-axis [wrap and flow modifiers](#grid-wrapping-and-flow).
 - [Directional axis limits](#limiting-linear-focusgroup-directionality) - applies to linear
    `focusgroup`s only; respond to arrow keys in one axis only (either up/down or left/right when the
    arrow key pressed matches the corresponding flow of the content). By default, linear `focusgroup`s
@@ -1006,12 +1007,54 @@ _Note: Some behavior tokens carry `wrap` as a [default modifier](#default-modifi
 | `focusgroup="<behavior>"` (where `<behavior>` is a linear behavior) | linear | No wrapping; edges are hard stops (unless the behavior token's [default modifiers](#default-modifiers) include `wrap`). |
 | `focusgroup="<behavior> wrap"` (where `<behavior>` is a linear behavior) | linear | Moving past one end wraps focus to the opposite end. |
 | `focusgroup="<behavior> nowrap"` (where `<behavior>` is a linear behavior) | linear | Explicitly disable wrapping; edges are hard stops. Overrides a behavior token's default `wrap` modifier. |
-| (automatic grid default) `focusgroup="grid"` | grid | No wrapping; row and column edges are hard stops. |
-| (manual grid default) `focusgroup="grid manual"` | grid | No wrapping; row and column edges are hard stops. |
 
 Specifying both `wrap` and `nowrap` in one HTML `focusgroup` definition is an author error.
 
-The proposal does not define `wrap` or `nowrap` for the `grid` behavior; its boundaries are hard stops. The `feed` wrapping and key model remains open, so the current draft accepts neither wrapping token for that behavior. At a grid edge, the user agent does not consume the key for grid focusgroup behavior.
+The `grid` behavior has its own per-axis wrapping and flow modifiers, described in [Grid wrapping and flow](#grid-wrapping-and-flow). The `feed` wrapping and key model remains open, so the current draft accepts neither wrapping token for that behavior.
+
+### Grid wrapping and flow
+
+A `grid` focusgroup configures each edge independently. The inline-axis modifiers (`row-wrap`, `row-flow`) control what happens when inline movement passes a row's first or last cell. The block-axis modifiers (`col-wrap`, `col-flow`) control what happens when block movement passes a column's first or last row. The broad `wrap` and `flow` tokens set both axes at once, and `nowrap` forces hard edges.
+
+| HTML (attribute value) | Inline edges (within a row) | Block edges (within a column) |
+|---|---|---|
+| `focusgroup="grid"` (default) | Hard edge | Hard edge |
+| `focusgroup="grid wrap"` (= `row-wrap col-wrap`) | Wrap to the opposite end of the same row | Wrap to the opposite end of the same column |
+| `focusgroup="grid flow"` (= `row-flow col-flow`) | Continue at the start or end of the next or previous row | Continue at the start or end of the next or previous column |
+| `focusgroup="grid row-wrap"` | Wrap to the opposite end of the same row | Hard edge |
+| `focusgroup="grid col-wrap"` | Hard edge | Wrap to the opposite end of the same column |
+| `focusgroup="grid row-flow"` | Continue at the start or end of the next or previous row | Hard edge |
+| `focusgroup="grid col-flow"` | Hard edge | Continue at the start or end of the next or previous column |
+| `focusgroup="grid row-wrap col-flow"` | Wrap to the opposite end of the same row | Continue at the start or end of the next or previous column |
+| `focusgroup="grid row-flow col-wrap"` | Continue at the start or end of the next or previous row | Wrap to the opposite end of the same column |
+| `focusgroup="grid nowrap"` | Hard edge (explicit) | Hard edge (explicit) |
+
+- **Wrap** keeps movement within the same row or column, returning to its opposite end.
+- **Flow** carries movement to the adjacent row or column. With `row-flow`, passing the inline-end of a row continues at the first cell of the next row, and passing the inline-start continues at the last cell of the previous row; `col-flow` does the same for block movement across columns. The outermost continuation wraps around: with `row-flow`, moving past the last cell of the last row returns to the first cell of the first row; with `col-flow`, moving past the last row of the last column returns to the first row of the first column.
+- **Hard edge** (the default) stops movement. Focus does not move and the user agent does not consume the key.
+
+Wrapping and flow scan through [targetless cells](#cell-coordinates-and-directional-targets) exactly as ordinary movement does, stopping on the first eligible target. If a scan returns to the starting target without finding another eligible target, focus does not move and the key is not consumed.
+
+`nowrap` forces hard edges on both axes and takes precedence over `wrap`, `flow`, and the axis-specific modifiers. Specifying conflicting modifiers for the same axis — `row-wrap` with `row-flow`, or `col-wrap` with `col-flow` (including the combinations implied by pairing `wrap` with `flow`) — is an author error; the affected axis falls back to a hard edge. This mirrors the linear rule that a `wrap`/`nowrap` conflict is an author error.
+
+```html
+<div focusgroup="grid manual flow" aria-label="Emoji picker">
+  <div focusgrouprow>
+    <div tabindex="0">😀</div>
+    <div tabindex="0">😉</div>
+  </div>
+  <div focusgrouprow>
+    <div tabindex="0">😊</div>
+    <div tabindex="0">😎</div>
+  </div>
+</div>
+```
+
+What to notice:
+
+- `flow` sets both axes: inline movement past a row edge continues in the adjacent row, and block movement past a column edge continues in the adjacent column.
+- Moving inline-end from `😉` (last cell of the first row) continues at `😊` (first cell of the next row).
+- Moving inline-end from `😎` (last cell of the last row) wraps around to `😀` (first cell of the first row).
 
 ## Limiting linear focusgroup directionality
 
@@ -1510,13 +1553,13 @@ The grid owner's computed writing mode and direction map physical arrow keys to 
 
 | Command | Result |
 |---|---|
-| Inline-start or inline-end | Moves to the previous or next eligible target in the current row, scanning through targetless cells. |
-| Block-start or block-end | Preserves the current column and scans rows in that direction through targetless cells. |
+| Inline-start or inline-end | Moves to the previous or next eligible target in the current row, scanning through targetless cells; at a row edge, applies the [inline wrap or flow](#grid-wrapping-and-flow) setting. |
+| Block-start or block-end | Moves through the current column to the previous or next eligible target, scanning through targetless cells; at a column edge, applies the [block wrap or flow](#grid-wrapping-and-flow) setting. |
 | Home or End | Moves to the first or last eligible target in the current row. |
 | Ctrl+Home or Ctrl+End | Moves to the first or last eligible target in row-major order. |
 | Page Up or Page Down | Not handled by grid focusgroup behavior. |
 
-The initial shape has no missing coordinate slots because every row has the same number of cells. Inline movement never crosses a row, and the `grid` behavior does not support `wrap` or `nowrap`. At a hard edge or when no eligible target exists in the requested direction, focus does not move and the user agent does not consume the key for grid focusgroup behavior.
+Every row has the same number of cells, so the initial shape has no missing coordinate slots. By default both axes have hard edges; the [wrapping and flow modifiers](#grid-wrapping-and-flow) can wrap movement to the opposite end of the same row or column, or flow it into an adjacent row or column. At a hard edge, or when a wrap or flow scan finds no other eligible target in the requested direction, focus does not move and the user agent does not consume the key for grid focusgroup behavior.
 
 After `keydown` propagation, grid dispatch continues only if the event was not canceled and focus remains on the original focused area. It recognizes unmodified Arrow, Home, and End keys, plus exactly Ctrl+Home and Ctrl+End; all other modifier combinations remain available to platform or author behavior. If the focused element has a native default action for that exact key and modifier combination, grid navigation does not run.
 
@@ -1625,6 +1668,7 @@ The grid and feed behaviors do not change selection, activation, expansion, or c
 10. Let the grid infer `grid`, `row`, and `gridcell` on generic elements, or preserve explicit and native semantics where present. Do not mark cells with `focusgroupcell`, and do not use focusability to identify cells.
 11. Keep the initial grid rectangular, spanless, and fully rendered. Do not use `grid` for ragged, spanning, virtualized, indexed, or `treegrid` structures.
 12. Give a multi-control cell a focusable cell boundary and mark its inner controls with `focusgroup="none"`. `grid` implies `itemcontrols`, so only the active cell's controls participate in sequential focus navigation.
+13. A grid has hard edges by default. Add `wrap` (or `row-wrap`/`col-wrap`) to wrap within a row or column, or `flow` (or `row-flow`/`col-flow`) to continue into the adjacent row or column. `nowrap` forces hard edges.
 
 ## Alternatives considered
 When considering how to ensure that `focusgroup` usage is scoped to scenarios we want, the following
@@ -1736,15 +1780,20 @@ Companion attributes (not `focusgroup` tokens):
 | Inline direction | `inline` | Linear behaviors |
 | Block direction | `block` | Linear behaviors |
 
-***Focusgroup wrapping:***
+***Focusgroup wrapping and flow:***
 
 | Description | HTML syntax | Applies to |
 |---|---|---|
-| Behavior default | (unspecified value) | Linear and grid behaviors; the `feed` wrapping model remains open |
-| no wrap (explicit, overrides default) | `nowrap` | Linear behaviors |
-| wrap | `wrap` | Linear behaviors |
+| Behavior default (hard edges on a grid) | (unspecified value) | Linear and grid behaviors; the `feed` wrapping model remains open |
+| Wrap end→start (grid: within the same row and column) | `wrap` | Linear and grid (grid = `row-wrap col-wrap`) |
+| No wrap / hard edges (explicit, overrides default) | `nowrap` | Linear and grid |
+| Flow into the adjacent row and column | `flow` | `grid` (= `row-flow col-flow`) |
+| Wrap within the same row | `row-wrap` | `grid` |
+| Wrap within the same column | `col-wrap` | `grid` |
+| Flow across rows | `row-flow` | `grid` |
+| Flow across columns | `col-flow` | `grid` |
 
-The `grid` behavior does not accept `wrap` or `nowrap`. The `feed` wrapping model remains open; the current draft accepts neither wrapping token.
+On a grid, `nowrap` forces hard edges and overrides `wrap`/`flow`. Conflicting same-axis grid modifiers (`row-wrap` with `row-flow`, or `col-wrap` with `col-flow`) are an author error and fall back to a hard edge. The `feed` wrapping model remains open; the current draft accepts neither wrapping token for `feed`.
 
 ***Focusgroup memory:***
 
