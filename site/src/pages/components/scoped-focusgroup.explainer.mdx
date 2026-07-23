@@ -120,8 +120,8 @@ Specifying a specific item as the [start element](#the-focusgroupstart-attribute
 |-------|-----------|--------------|
 | `<behavior>` | Yes (unless using [`none`](#opting-out)) | Token describing the intended behavior. See: [Supported behaviors](#supported-behaviors). Some behavior tokens carry [default modifiers](#default-modifiers) (e.g., `tablist` defaults to `inline` `wrap`). |
 | [`inline`](#limiting-linear-focusgroup-directionality) / [`block`](#limiting-linear-focusgroup-directionality) | Optional | Restrict arrow navigation to that logical axis. Omit to allow both axes (unless a [default modifier](#default-modifiers) supplies one). |
-| [`wrap`](#enabling-wrapping-behaviors) | Optional | Linear: loops end→start and start→end. Grid: wraps within the same row and column (`row-wrap col-wrap`). Some behavior tokens enable `wrap` by [default](#default-modifiers). |
-| [`nowrap`](#enabling-wrapping-behaviors) | Optional | Explicitly hard edges. Overrides a behavior token's default `wrap`, and on a grid overrides `wrap`/`flow`. Cannot be combined with `wrap`. |
+| [`wrap`](#enabling-linear-wrapping-behavior) | Optional | Linear: loops end→start and start→end. Grid: wraps within the same row and column (`row-wrap col-wrap`). Some behavior tokens enable `wrap` by [default](#default-modifiers). |
+| [`nowrap`](#enabling-linear-wrapping-behavior) | Optional | Explicitly hard edges. Overrides a behavior token's default `wrap`, and on a grid overrides `wrap`/`flow`. Cannot be combined with `wrap`. |
 | [`nomemory`](#disabling-focusgroup-memory) | Optional | Disable restoring last-focused item on re-entry (memory is on by default). |
 | [`none`](#opting-out) | Standalone | Opt-out: exclude element and its subtree from ancestor focusgroup. Cannot be combined with any other token. |
 | [`grid`](#v2-grid-focusgroups) | V2 2-D behavior | Provides 2-D directional navigation over a native HTML table structure. Pair with [`manual`](#manual-row-enrollment) for generic markup. |
@@ -163,7 +163,7 @@ Choosing your markup (`focusgroup` never overrides native semantics): the mappin
 
 With either approach, `focusgroup`'s navigation and role mapping require no script; only the widget's actions and state (toggling `aria-selected`, showing a panel, running a command) need author code.
 
-The `grid` behavior derives its 2-D topology from HTML structure — a native table for automatic mode, or `focusgrouprow`-marked rows for [`manual`](#manual-row-enrollment) mode — never from authored ARIA roles or `ElementInternals`. Like the linear behaviors, it infers minimum roles one-way (`grid` on a generic owner, `row` on a generic marked row, and `gridcell` on a generic cell) under the [precedence rules](#behavior--role-mapping-and-precedence) below, and it never overrides explicit or non-generic native semantics. Markup that cannot form a rectangular grid follows the [invalid-grid fallback](#invalid-grid-structures).
+The `grid` behavior derives its 2-D topology from HTML structure — a native table for automatic mode, or `focusgrouprow`-marked rows for [`manual`](#manual-row-enrollment) mode. Like the linear behaviors, it infers minimum roles one-way (`grid` on a generic owner, `row` on a generic marked row, and `gridcell` on a generic cell) under the [precedence rules](#behavior--role-mapping-and-precedence) below. Markup that cannot form a rectangular grid follows the [invalid-grid fallback](#invalid-grid-structures).
 
 For example, a set of action links can stay a real list of links and still gain arrow-key navigation within a single tab stop. The links keep working without script; author the toolbar role yourself.
 
@@ -195,8 +195,6 @@ Behavior tokens and their APG alignment, minimum roles, and default modifiers. T
 | `feed` | V2 | [Feed](https://www.w3.org/WAI/ARIA/apg/patterns/feed/) | [`feed`](https://www.w3.org/TR/wai-aria-1.2/#feed) | [`article`](https://www.w3.org/TR/wai-aria-1.2/#article) | `block` `itemcontrols` | [APG Feed](https://www.w3.org/WAI/ARIA/apg/patterns/feed/) |
 | [`grid`](#v2-grid-focusgroups) | V2 | [Grid](https://www.w3.org/WAI/ARIA/apg/patterns/grid/) | [`grid`](https://www.w3.org/TR/wai-aria-1.2/#grid) | [`row`](https://www.w3.org/TR/wai-aria-1.2/#row), [`gridcell`](https://www.w3.org/TR/wai-aria-1.2/#gridcell) | `itemcontrols` | [APG Grid](https://www.w3.org/WAI/ARIA/apg/patterns/grid/) |
 
-The `manual` modifier (`focusgroup="grid manual"`) and the `itemcontrols` modifier are not behaviors and do not appear in this table. `manual` selects the grid's [manual row enrollment](#manual-row-enrollment); `itemcontrols` is described in [V2 itemcontrols](#v2-itemcontrols).
-
 #### Default modifiers
 
 Certain behavior tokens carry **default modifiers** that are automatically applied when the author does not explicitly specify a conflicting modifier. Default modifiers align with [APG pattern](https://www.w3.org/WAI/ARIA/apg/) conventions so that common patterns require minimal configuration.
@@ -205,8 +203,8 @@ Certain behavior tokens carry **default modifiers** that are automatically appli
 - An explicit modifier always overrides the corresponding default. For example, `focusgroup="tablist block"` overrides the `inline` default with `block`.
 - The `nowrap` token explicitly disables wrapping, overriding a behavior token's default `wrap` modifier. For example, `focusgroup="tablist nowrap"` produces a tablist that doesn't wrap.
 - Explicitly specifying the same modifier as the default is redundant but valid (e.g., `focusgroup="tablist inline wrap"` is equivalent to `focusgroup="tablist"`).
-- Tokens that don't appear in the default modifiers column behave as documented in [Enabling wrapping behaviors](#enabling-wrapping-behaviors) and [Limiting linear focusgroup directionality](#limiting-linear-focusgroup-directionality) (i.e., no wrapping, both axes enabled).
-- The `feed` and `grid` behaviors carry `itemcontrols` as a default modifier, so authors need not spell it; a redundant explicit `itemcontrols` remains valid.
+- Tokens that don't appear in the default modifiers column behave as documented in [Enabling linear wrapping behavior](#enabling-linear-wrapping-behavior) and [Limiting linear focusgroup directionality](#limiting-linear-focusgroup-directionality) (i.e., no wrapping, both axes enabled).
+- The `feed` and `grid` behaviors carry `itemcontrols` as a default modifier; a redundant explicit `itemcontrols` remains valid.
 
 For example:
 - `focusgroup="tablist"` is equivalent to `focusgroup="tablist inline wrap"` — tabs conventionally navigate horizontally and wrap.
@@ -221,8 +219,6 @@ For example:
 4. Explicit incompatible `role` (e.g., `button`): UA MAY activate an author warning.
 5. Child role inference only runs when: (a) container role came from behavior mapping, (b) descendant is managed (not opted-out), (c) behavior defines an inferred child role, (d) descendant lacks explicit `role`, and (e) inference would not replace non-generic native semantics. The exception is `<button>`, which is eligible when the inferred role appears in the [ARIA in HTML `button` entry](https://www.w3.org/TR/html-aria/#el-button). Other native interactive elements retain their native semantics.
 6. Inference never upgrades variant types (e.g., `menuitemcheckbox` vs `menuitemradio`) — authors must specify those explicitly.
-7. The `grid` behavior applies the same one-way, generic-only inference to a 2-D structure: a generic grid owner is exposed as `grid`, a generic `focusgrouprow` row under a [`manual`](#manual-row-enrollment) grid is exposed as `row`, and a generic cell identified by the grid's HTML topology is exposed as `gridcell`. Explicit or non-generic native semantics are preserved and are never overridden.
-8. Grid topology comes from HTML structure, never from authored ARIA or `ElementInternals`: automatic mode reads the native table structure (`<tr>`, `<td>`/`<th>`, and native row groups), and manual mode reads `focusgrouprow` markers and each marked row's direct flat-tree element children. Explicit roles, when present, are preserved by this precedence but do not define topology.
 
 This approach separates behavioral intent (token) from accessibility semantics (minimum role mapping) and addresses concerns about reusing ARIA role strings directly as activation tokens.
 
@@ -269,7 +265,7 @@ What to notice:
 - If focus is moved via left arrow key to `tab-1`, then pressing the tab key moves focus to
    `tabpanel-2` which is next in sequential focus navigation order (because the other
    `role="tabpanel"`s are `hidden`).
-- Focus will [`wrap`](#enabling-wrapping-behaviors) from one end of the tablist to the other because `tablist` carries `wrap` as a [default modifier](#default-modifiers).
+- Focus will [`wrap`](#enabling-linear-wrapping-behavior) from one end of the tablist to the other because `tablist` carries `wrap` as a [default modifier](#default-modifiers).
 - The up and down arrow keys **will not** move the focus because `tablist` carries `inline` as a [default modifier](#default-modifiers), which
    restricts the axis of movement to keyboard directional arrow keys in the `role="tablist"`'s
    **inline** direction (assuming the `<div>`'s `writing-mode` is `horizontal-tb`). The author does not need to specify `inline wrap` explicitly — these are supplied by the behavior token's defaults.
@@ -774,8 +770,6 @@ In this example:
 - Arrow key navigation follows the same order: Right arrow moves from Third → Second → First
 - Pressing Right Arrow moves focus visually to the right, matching user expectations
 
-For a `grid` focusgroup, the row and column coordinates follow [order-modified document order](https://drafts.csswg.org/css-display-4/#order-modified-document-order) — the visual order produced by CSS `order` — further adjusted by `reading-flow` and `reading-order` when present. Grid ownership still comes from HTML flat-tree ancestry: `order` and `reading-flow` never change which element is a row or cell, only the sequence of rows and of cells within a row. `order` affects visual order and `reading-flow` adjusts reading and sequential order; the grid intentionally uses their combined result for its directional coordinates, so inline and block movement, the row and grid extents, row-major traversal, and wrap or flow all track the visual layout.
-
 #### ARIA orientation
 
 The `aria-orientation` attribute indicates whether a widget's orientation is horizontal, vertical, or undefined. Focusgroup doesn't automatically infer or set `aria-orientation` from `inline`/`block` tokens.
@@ -796,21 +790,20 @@ For keyboard input specifically, user agents MAY map unmodified arrow keys to fo
 
 [CSS spatial navigation](https://www.w3.org/TR/css-nav-1/) defines a general model for moving focus with arrow keys (or D-pad) across an entire document, oriented to spatial position rather than to a specific composite widget. Focusgroup and CSS spatial navigation address different scopes and are expected to compose:
 
-- **Focusgroup** governs directional navigation _within_ author-defined composite widgets (toolbars, tablists, menus, listboxes, radiogroups, etc.). It defines a single tab stop per [segment](#focusgroup-segments), [last-focused memory](#last-focused-memory), [axis restriction](#limiting-linear-focusgroup-directionality), and [wrapping](#enabling-wrapping-behaviors) — semantics tied to a recognized interaction pattern.
+- **Focusgroup** governs directional navigation _within_ author-defined composite widgets (toolbars, tablists, menus, listboxes, radiogroups, etc.). It defines a single tab stop per [segment](#focusgroup-segments), [last-focused memory](#last-focused-memory), [axis restriction](#limiting-linear-focusgroup-directionality), and [wrapping](#enabling-linear-wrapping-behavior) — semantics tied to a recognized interaction pattern.
 - **CSS spatial navigation** governs directional navigation _between_ controls across the document, providing arrow-key (or D-pad) traversal as an alternative or assistive means of reaching any focusable element on the page.
 
 When focus is on a focusgroup item, focusgroup handles arrow-key movement within the segment; when the user moves focus out of the focusgroup (via Tab, or when the segment provides no further movement in the requested direction), spatial navigation can take over for document-level traversal. These two features compose well in practice, with focusgroup facilitating navigation within author-defined controls, and spatial navigation facilitating document-level traversal.
 
 The composition matters most for devices that rely on directional input (TVs and remote controls, D-pads, game controllers) and for assistive technologies that expose arrow-key traversal as a primary input modality. Focusgroup intentionally does not attempt to specify spatial-navigation semantics beyond a focusgroup's own scope; the surrounding document's traversal model — whether sequential, spatial, or AT-driven — remains the responsibility of the user agent and any applicable specifications such as CSS spatial navigation.
 
-Authors should take care that the [`wrap`](#enabling-wrapping-behaviors) behavior does not impede spatial navigation out of a focusgroup. With `wrap`, arrow-key navigation cycles within the segment indefinitely and never reaches the segment's edge, which can prevent a spatial-navigation algorithm from receiving a "no further item in this direction" signal that would otherwise let it move focus to a neighboring control outside the focusgroup. Authors should consider using [`nowrap`](#enabling-wrapping-behaviors) or rely on a behavior token whose [default modifiers](#default-modifiers) do not include `wrap` when there is no target for spatial navigation in the cross-axis. The same authoring consideration applies today when implementing roving-tabindex composites in JavaScript.
+Authors should take care that the [`wrap`](#enabling-linear-wrapping-behavior) behavior does not impede spatial navigation out of a focusgroup. With `wrap`, arrow-key navigation cycles within the segment indefinitely and never reaches the segment's edge, which can prevent a spatial-navigation algorithm from receiving a "no further item in this direction" signal that would otherwise let it move focus to a neighboring control outside the focusgroup. Authors should consider using [`nowrap`](#enabling-linear-wrapping-behavior) or rely on a behavior token whose [default modifiers](#default-modifiers) do not include `wrap` when there is no target for spatial navigation in the cross-axis. The same authoring consideration applies today when implementing roving-tabindex composites in JavaScript.
 
 ### Feature detection
 
 To enable feature detection, user agents expose the `focusGroup`, `focusGroupStart`,
 and `focusGroupRow` DOM properties on elements. Their content-attribute counterparts
-are `focusgroup`, `focusgroupstart`, and `focusgrouprow` (lowercase). All three
-companion surfaces are reflected together:
+are `focusgroup`, `focusgroupstart`, and `focusgrouprow` (lowercase).
 
 ```webidl
 partial interface mixin HTMLOrSVGElement {
@@ -844,7 +837,7 @@ authors who depend on manual topology should test `supports('manual')` before us
 
 Focusgroups have the following additional features:
 
-- [Wrap-around semantics](#enabling-wrapping-behaviors) - what to do when attempting to move past
+- [Wrap-around semantics](#enabling-linear-wrapping-behavior) - what to do when attempting to move past
    the end of a `focusgroup`. The default/initial value is `nowrap`, which means that focus is
    not moved past the ends of a `focusgroup` with the arrow keys. The `grid` behavior defaults to hard edges and accepts per-axis [wrap and flow modifiers](#grid-wrapping-and-flow).
 - [Directional axis limits](#limiting-linear-focusgroup-directionality) - applies to linear
@@ -996,11 +989,9 @@ In this example, the opted-out help section creates two focusgroup segments:
 
 This demonstrates how `focusgroupstart` works independently within each segment created by opted-out elements.
 
-## Enabling wrapping behaviors
+## Enabling linear wrapping behavior
 
-By default, `focusgroup` traversal with arrow keys ends at boundaries of the `focusgroup` (the start and
-end of a linear `focusgroup`, and the start and end of both rows and columns in a grid `focusgroup`).
-The following `focusgroup` definition values change this behavior.
+By default, arrow-key traversal of a linear `focusgroup` ends at the start and end of the `focusgroup`. The following `focusgroup` definition values change this behavior.
 
 _Note: Some behavior tokens carry `wrap` as a [default modifier](#default-modifiers) (e.g., `tablist`, `menu`, `menubar`). When a default modifier supplies `wrap`, the author does not need to specify it explicitly._
 
@@ -1012,51 +1003,7 @@ _Note: Some behavior tokens carry `wrap` as a [default modifier](#default-modifi
 
 Specifying both `wrap` and `nowrap` in one HTML `focusgroup` definition is an author error.
 
-The `grid` behavior has its own per-axis wrapping and flow modifiers, described in [Grid wrapping and flow](#grid-wrapping-and-flow). The `feed` wrapping and key model remains open, so the current draft accepts neither wrapping token for that behavior.
-
-### Grid wrapping and flow
-
-A `grid` focusgroup configures each edge independently. The inline-axis modifiers (`row-wrap`, `row-flow`) control what happens when inline movement passes a row's first or last cell. The block-axis modifiers (`col-wrap`, `col-flow`) control what happens when block movement passes a column's first or last row. The broad `wrap` and `flow` tokens set both axes at once, and `nowrap` forces hard edges.
-
-| HTML (attribute value) | Inline edges (within a row) | Block edges (within a column) |
-|---|---|---|
-| `focusgroup="grid"` (default) | Hard edge | Hard edge |
-| `focusgroup="grid wrap"` (= `row-wrap col-wrap`) | Wrap to the opposite end of the same row | Wrap to the opposite end of the same column |
-| `focusgroup="grid flow"` (= `row-flow col-flow`) | Continue at the start or end of the next or previous row | Continue at the start or end of the next or previous column |
-| `focusgroup="grid row-wrap"` | Wrap to the opposite end of the same row | Hard edge |
-| `focusgroup="grid col-wrap"` | Hard edge | Wrap to the opposite end of the same column |
-| `focusgroup="grid row-flow"` | Continue at the start or end of the next or previous row | Hard edge |
-| `focusgroup="grid col-flow"` | Hard edge | Continue at the start or end of the next or previous column |
-| `focusgroup="grid row-wrap col-flow"` | Wrap to the opposite end of the same row | Continue at the start or end of the next or previous column |
-| `focusgroup="grid row-flow col-wrap"` | Continue at the start or end of the next or previous row | Wrap to the opposite end of the same column |
-| `focusgroup="grid nowrap"` | Hard edge (explicit) | Hard edge (explicit) |
-
-- **Wrap** keeps movement within the same row or column, returning to its opposite end.
-- **Flow** carries movement to the adjacent row or column. With `row-flow`, passing the inline-end of a row continues at the first cell of the next row, and passing the inline-start continues at the last cell of the previous row; `col-flow` does the same for block movement across columns. The outermost continuation wraps around: with `row-flow`, moving past the last cell of the last row returns to the first cell of the first row; with `col-flow`, moving past the last row of the last column returns to the first row of the first column.
-- **Hard edge** (the default) stops movement. Focus does not move and the operation is not consumed.
-
-Wrapping and flow scan through [targetless cells](#cell-coordinates-and-directional-targets) exactly as ordinary movement does, stopping on the first eligible target. If a scan returns to the starting target without finding another eligible target, focus does not move and the operation is not consumed.
-
-`nowrap` forces hard edges on both axes and takes precedence over `wrap`, `flow`, and the axis-specific modifiers. Specifying conflicting modifiers for the same axis — `row-wrap` with `row-flow`, or `col-wrap` with `col-flow` (including the combinations implied by pairing `wrap` with `flow`) — is an author error; the affected axis falls back to a hard edge. This mirrors the linear rule that a `wrap`/`nowrap` conflict is an author error.
-
-```html
-<div focusgroup="grid manual flow" aria-label="Emoji picker">
-  <div focusgrouprow>
-    <div tabindex="0">😀</div>
-    <div tabindex="0">😉</div>
-  </div>
-  <div focusgrouprow>
-    <div tabindex="0">😊</div>
-    <div tabindex="0">😎</div>
-  </div>
-</div>
-```
-
-What to notice:
-
-- `flow` sets both axes: inline movement past a row edge continues in the adjacent row, and block movement past a column edge continues in the adjacent column.
-- Moving inline-end from `😉` (last cell of the first row) continues at `😊` (first cell of the next row).
-- Moving inline-end from `😎` (last cell of the last row) wraps around to `😀` (first cell of the first row).
+The `feed` wrapping and key model remains open, so the current draft accepts neither wrapping token for that behavior.
 
 ## Limiting linear focusgroup directionality
 
@@ -1426,7 +1373,7 @@ The `grid` behavior provides 2-dimensional directional navigation for structures
 
 `manual` is a grid modifier, not a separate behavior. It is scoped to `grid` today and reserved for reuse by future behaviors. An owner that does not include the `grid` behavior token ignores `manual` under the ordinary [token-list fallback](#index-of-focusgroup-values).
 
-Grid topology comes from HTML structure, never from authored ARIA roles or `ElementInternals`. Automatic mode reads a native table (`<tr>`, `<td>`/`<th>`, and native row groups); manual mode reads `focusgrouprow` markers and each marked row's direct element children. The grid then infers `grid`, `row`, and `gridcell` roles one-way on generic elements, following the shared [minimum-role precedence](#behavior--role-mapping-and-precedence). Explicit roles and non-generic native semantics are preserved and never overridden, and they do not redefine topology. A native `<table>` continues to map through HTML-AAM; authors add `role="grid"` when they want the composite `grid` role exposed. The initial model does not support `treegrid`.
+Grid topology comes from HTML structure. Automatic mode reads a native table (`<tr>`, `<td>`/`<th>`, and native row groups); manual mode reads `focusgrouprow` markers and each marked row's direct element children. The grid then infers `grid`, `row`, and `gridcell` roles one-way on generic elements, following the shared [minimum-role precedence](#behavior--role-mapping-and-precedence). A native `<table>` continues to map through HTML-AAM; authors add `role="grid"` when they want the composite `grid` role exposed. The initial model does not support `treegrid`.
 
 The grid owner is not a coordinate or directional target. A focusable owner would add a sequential stop with no grid coordinate, so it makes the grid behavior invalid.
 
@@ -1444,15 +1391,13 @@ The structural requirements for a supported grid, and the behavior when they are
 
 The user agent determines all grid ownership, ancestry, direct-child relationships, and paths in the CSS flat tree. Open and closed shadow roots follow the same user-agent traversal rules; assigned nodes and fallback content follow flat-tree ownership, and unassigned light-DOM children are absent. The nearest parsed focusgroup owner owns a candidate structure. An independent nested focusgroup, a nested grid owner, a `focusgroup="none"` subtree, and a top-layer subtree delimit the outer grid's scope. Top-layer exclusion is applied after flat-tree ownership. Row and column *order* follows [order-modified document order adjusted by `reading-flow`](#reading-flow), not raw flat-tree order; ownership is unaffected by `order` and `reading-flow`.
 
-Grid topology is a structural property of the HTML, not a projection of the accessibility tree. The user agent classifies rows and cells from the markup — a native table in [automatic mode](#automatic-semantic-topology), or `focusgrouprow` markers and their direct flat-tree element children in [manual mode](#manual-row-enrollment) — and never reads authored ARIA roles or `ElementInternals` defaults to decide the topology. The inferred `grid`, `row`, and `gridcell` roles are a one-way output of that structure (see [Behavior → role mapping and precedence](#behavior--role-mapping-and-precedence)).
-
 A supported grid is rectangular and spanless: every row has the same number of cells, each cell (including a targetless one) occupies exactly one coordinate, and no cell spans rows or columns. Hidden or inert structural rows and cells are excluded before this check. Ragged rows, spans, virtualized or indexed topology, `treegrid`, and column-major organization are deferred and follow the [invalid-grid fallback](#invalid-grid-structures).
 
 A row or cell cannot belong to more than one grid. A row cannot contain another row owned by the same grid, and a cell cannot contain another cell owned by the same grid. A nested focusgroup inside a cell remains an independent scope under the existing nesting rules.
 
 ### Automatic semantic topology
 
-`focusgroup="grid"` discovers every row and cell from a native HTML table structure. Native table sections (`<thead>`, `<tbody>`, `<tfoot>`) group rows, `<tr>` elements are rows, and `<td>`/`<th>` elements are cells. The user agent reads this structure directly; it does not consult authored ARIA roles or `ElementInternals` to build the topology.
+`focusgroup="grid"` discovers every row and cell from a native HTML table structure. Native table sections (`<thead>`, `<tbody>`, `<tfoot>`) group rows, `<tr>` elements are rows, and `<td>`/`<th>` elements are cells.
 
 Automatic ownership is intentionally strict. A row must be a direct flat-tree child of the grid owner or of a direct native row group. A cell must be a direct flat-tree child of its row. Automatic mode does not search through arbitrary wrappers; generic or custom markup uses [`manual`](#manual-row-enrollment) mode.
 
@@ -1477,7 +1422,7 @@ What to notice:
 
 `focusgroup="grid manual"` supports generic and custom markup by requiring explicit row enrollment. Every semantic row owned by the manual grid carries `focusgrouprow`, and each marked row's direct flat-tree element children are its cells.
 
-`focusgrouprow` is structural: it never establishes a focusgroup owner or definition, nested scope, focusgroup segment, or memory. On a generic element it contributes a one-way inferred `row` role under the shared [minimum-role precedence](#behavior--role-mapping-and-precedence); on an element with explicit or non-generic native `row` semantics, that existing role is preserved. Cells are not marked with a `focusgroupcell` attribute: each direct element child of a marked row is a cell coordinate, and a generic cell is exposed one-way as `gridcell`.
+`focusgrouprow` is structural: it never establishes a focusgroup owner or definition, nested scope, focusgroup segment, or memory. On a generic element it contributes a one-way inferred `row` role under the shared [minimum-role precedence](#behavior--role-mapping-and-precedence). Cells are not marked with a `focusgroupcell` attribute: each direct element child of a marked row is a cell coordinate, and a generic cell is exposed one-way as `gridcell`.
 
 The `focusgrouprow` marker locates rows explicitly, so a marked row may sit beneath nonfocusable wrappers in the owner's flat-tree subtree. Each cell, however, is a direct flat-tree element child of its marked row; manual mode does not search through cell wrappers. A focusable wrapper around a row remains a structural barrier because it would otherwise be an unmanaged focusable descendant of the grid.
 
@@ -1498,9 +1443,9 @@ An owned row without the `focusgrouprow` marker, or a marked row with a malforme
 
 What to notice:
 
-- The generic owner is exposed one-way as `grid`, each `focusgrouprow` element as `row`, and each row's direct child as `gridcell`. Authored roles or non-generic native semantics, when present, are preserved instead.
+- The generic owner is exposed one-way as `grid`, each `focusgrouprow` element as `row`, and each row's direct child as `gridcell`.
 - `focusgrouprow` marks the rows; each marked row's direct element children are its cells. No `focusgroupcell` marker exists, and focusability does not define cell identity.
-- Manual mode makes row enrollment explicit for markup that has no native table structure; it never reads ARIA to build the topology.
+- Manual mode makes row enrollment explicit for markup that has no native table structure.
 
 ### Cell coordinates and directional targets
 
@@ -1521,7 +1466,7 @@ Every focusable descendant owned by a valid grid must be either the selected tar
 
 #### Multi-control cells and itemcontrols
 
-Because `grid` implies [`itemcontrols`](#v2-itemcontrols), a grid's outer items are its cell/coordinate targets — a focusable cell boundary or the cell's selected target — and only the active cell's controls join sequential focus navigation. A cell with multiple controls uses a focusable cell boundary as its grid target, and its inner controls use `focusgroup="none"` so they do not become grid targets. Authors do not need to spell `itemcontrols`; a redundant explicit `itemcontrols` remains valid.
+Because `grid` implies [`itemcontrols`](#v2-itemcontrols), a grid's outer items are its cell/coordinate targets — a focusable cell boundary or the cell's selected target. The active cell is the one that contains current focus, whether focus is on the cell target or on one of its associated controls; when focus leaves the grid, no cell is active. Only the active cell's controls join sequential focus navigation, and controls in the other cells are skipped. A cell with multiple controls uses a focusable cell boundary as its grid target, and its inner controls use `focusgroup="none"` so they do not become grid targets. A redundant explicit `itemcontrols` remains valid.
 
 ```html
 <div focusgroup="grid manual" aria-label="Files">
@@ -1544,7 +1489,51 @@ What to notice:
 
 - Each focusable cell (a direct child of the marked row) is the single grid target for its coordinate and is exposed one-way as `gridcell`.
 - The links and buttons are excluded from grid directional navigation with `focusgroup="none"`. Only the controls associated with the active cell participate in sequential focus navigation; the controls in inactive cells are skipped.
-- `grid` implies `itemcontrols`, so the modifier need not be spelled. Directional navigation moves between cell targets, and Tab from the active cell enters its associated controls.
+- `grid` implies `itemcontrols`. Directional navigation moves between cell targets, and Tab from the active cell enters its associated controls.
+
+### Grid wrapping and flow
+
+A `grid` focusgroup configures each edge independently. The inline-axis modifiers (`row-wrap`, `row-flow`) control what happens when inline movement passes a row's first or last cell. The block-axis modifiers (`col-wrap`, `col-flow`) control what happens when block movement passes a column's first or last row. The broad `wrap` and `flow` tokens set both axes at once, and `nowrap` forces hard edges.
+
+| HTML (attribute value) | Inline edges (within a row) | Block edges (within a column) |
+|---|---|---|
+| `focusgroup="grid"` (default) | Hard edge | Hard edge |
+| `focusgroup="grid wrap"` (= `row-wrap col-wrap`) | Wrap to the opposite end of the same row | Wrap to the opposite end of the same column |
+| `focusgroup="grid flow"` (= `row-flow col-flow`) | Continue at the start or end of the next or previous row | Continue at the start or end of the next or previous column |
+| `focusgroup="grid row-wrap"` | Wrap to the opposite end of the same row | Hard edge |
+| `focusgroup="grid col-wrap"` | Hard edge | Wrap to the opposite end of the same column |
+| `focusgroup="grid row-flow"` | Continue at the start or end of the next or previous row | Hard edge |
+| `focusgroup="grid col-flow"` | Hard edge | Continue at the start or end of the next or previous column |
+| `focusgroup="grid row-wrap col-flow"` | Wrap to the opposite end of the same row | Continue at the start or end of the next or previous column |
+| `focusgroup="grid row-flow col-wrap"` | Continue at the start or end of the next or previous row | Wrap to the opposite end of the same column |
+| `focusgroup="grid nowrap"` | Hard edge (explicit) | Hard edge (explicit) |
+
+- **Wrap** keeps movement within the same row or column, returning to its opposite end.
+- **Flow** carries movement to the adjacent row or column. With `row-flow`, passing the inline-end of a row continues at the first cell of the next row, and passing the inline-start continues at the last cell of the previous row; `col-flow` does the same for block movement across columns. The outermost continuation wraps around: with `row-flow`, moving past the last cell of the last row returns to the first cell of the first row; with `col-flow`, moving past the last row of the last column returns to the first row of the first column.
+- **Hard edge** (the default) stops movement. Focus does not move and the operation is not consumed.
+
+Wrapping and flow scan through [targetless cells](#cell-coordinates-and-directional-targets) exactly as ordinary movement does, stopping on the first eligible target. If a scan returns to the starting target without finding another eligible target, focus does not move and the operation is not consumed.
+
+`nowrap` forces hard edges on both axes and takes precedence over `wrap`, `flow`, and the axis-specific modifiers. Specifying conflicting modifiers for the same axis — `row-wrap` with `row-flow`, or `col-wrap` with `col-flow` (including the combinations implied by pairing `wrap` with `flow`) — is an author error; the affected axis falls back to a hard edge. This mirrors the linear rule that a `wrap`/`nowrap` conflict is an author error.
+
+```html
+<div focusgroup="grid manual flow" aria-label="Example grid">
+  <div focusgrouprow>
+    <div tabindex="0">A1</div>
+    <div tabindex="0">A2</div>
+  </div>
+  <div focusgrouprow>
+    <div tabindex="0">B1</div>
+    <div tabindex="0">B2</div>
+  </div>
+</div>
+```
+
+What to notice:
+
+- `flow` sets both axes: inline movement past a row edge continues in the adjacent row, and block movement past a column edge continues in the adjacent column.
+- Moving inline-end from `A2` (last cell of the first row) continues at `B1` (first cell of the next row).
+- Moving inline-end from `B2` (last cell of the last row) wraps around to `A1` (first cell of the first row).
 
 ### Grid directional navigation
 
