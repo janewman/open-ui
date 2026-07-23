@@ -124,7 +124,7 @@ Specifying a specific item as the [start element](#the-focusgroupstart-attribute
 | [`nowrap`](#enabling-wrapping-behaviors) | Optional | Explicitly disable wrapping. Useful for overriding a behavior token's default `wrap` modifier (e.g., `focusgroup="tablist nowrap"`). Cannot be combined with `wrap`. |
 | [`nomemory`](#disabling-focusgroup-memory) | Optional | Disable restoring last-focused item on re-entry (memory is on by default). |
 | [`none`](#opting-out) | Standalone | Opt-out: exclude element and its subtree from ancestor focusgroup. Cannot be combined with any other token. |
-| [`itemcontrols`](#v2-itemcontrols) | V2 modifier; implied by `feed` | Adds the `focusgroup="none"` controls of the outer item that currently holds focus to sequential focus navigation, and skips controls in items that aren't focused. |
+| [`itemcontrols`](#v2-itemcontrols) | V2 modifier; implied by `feed` | Adds controls associated with the active outer item to sequential focus navigation and skips controls associated with inactive items. |
 
 ## Focusgroup V1 and V2
 
@@ -1247,7 +1247,7 @@ The `itemcontrols` modifier defines this behavior. Authors mark controls inside 
 
 ### Active outer item
 
-While focus is inside an `itemcontrols` focusgroup, the **active outer item** is the outer item that contains current focus: the focused outer item itself, or the nearest containing outer item when focus is on one of its associated `focusgroup="none"` controls. Activity follows current focus rather than a separately stored selection, so when focus leaves the group no item is active. The active outer item is distinct from the optional last-focused memory, which persists after focus leaves and can select an item on the next entry.
+While focus is inside an `itemcontrols` focusgroup, the **active outer item** is either the focused outer item itself or the nearest containing outer item associated with the focused `focusgroup="none"` control. Activity follows current focus rather than a separately stored selection. If focus is neither on an outer item nor on one of its associated controls, no outer item is active. The active outer item is distinct from optional last-focused memory, which persists after focus leaves and can select an item on the next entry.
 
 - Directional navigation to an outer item focuses it, so that item becomes active.
 - Focusing an eligible outer item by pointer, script, or any other means makes it active.
@@ -1258,7 +1258,7 @@ While focus is inside an `itemcontrols` focusgroup, the **active outer item** is
 
 The selected behavior determines outer items before `itemcontrols` changes sequential navigation. Linear behaviors use their managed focusgroup items; the `feed` behavior uses its top-level article items. Each opted-out control is then associated with its nearest containing outer item.
 
-The user agent computes **base segments** before any inactive-descendant filtering. Associated controls do not create base segment boundaries, regardless of which item holds focus. Other opted-out content, independent nested focusgroups, and top-layer subtrees create boundaries when they meet the shared segment condition. The entry point selects one base segment; memory, `focusgroupstart`, and ordinary priority select an outer item in that segment. Once focus lands on that item, or on its reverse-entry control, the item is active, and only its associated controls are then inserted into sequential order. This keeps segment selection independent of which item is active, rather than using active-item filtering to decide the segment that selects the active item.
+The user agent computes **base segments** before filtering associated controls. Associated controls do not create base segment boundaries, regardless of which item holds focus. Other opted-out content, independent nested focusgroups, and top-layer subtrees create boundaries when they meet the shared segment condition. The entry point selects one base segment; memory, `focusgroupstart`, and ordinary priority select an outer item in that segment. Once focus lands on that item, or on its reverse-entry control, the item is active, and only controls associated with inactive items are removed from sequential order. This keeps segment selection independent of which item is active.
 
 ### Sequential-entry extension
 
@@ -1266,7 +1266,7 @@ When `itemcontrols` is present, the following steps extend the shared focusgroup
 
 1. Identify the base segment adjacent to the entry point, then apply the ordinary priority rules to eligible outer items in that segment. A remembered item and `focusgroupstart` therefore select an outer item, not one of its controls.
 2. For forward entry, focus the outer-item boundary. For reverse entry, focus its last associated `focusgroup="none"` control when present; otherwise focus the boundary.
-3. Focus landing on that item, or on one of its controls, makes it the active outer item. Its associated controls follow the boundary in sequential order, while other outer items and the controls associated with inactive items stay out of sequential focus navigation.
+3. Focus landing on that item, or on one of its associated controls, makes it the active outer item. Its associated controls follow the boundary in sequential order. Other outer items continue to follow the ordinary focusgroup sequential-navigation rules, while controls associated with inactive items are omitted.
 4. If `nomemory` is absent, store memory against the selected outer item even when reverse entry focuses one of its controls.
 
 These steps apply only to focusgroups that include `itemcontrols`; they do not change focusgroup entry behavior without the modifier.
@@ -1302,7 +1302,7 @@ The minimum `itemcontrols` model is:
 |---|---|---|---|
 | Active item boundary | Moves to another item and makes it active | Enters the first associated `focusgroup="none"` control, if present | Follows sequential focus navigation before the focusgroup |
 | Opted-out control associated with the active item | Preserves the control's native key behavior | Moves to the next associated control, then follows sequential focus navigation after the focusgroup | Moves to the previous associated control; from the first control, returns to the active item boundary |
-| Inactive outer item or its opted-out controls | Not a sequential-focus target | Skipped | Skipped |
+| Control associated with an inactive outer item | Not a directional-navigation target | Skipped | Skipped |
 | Independently scoped or top-layer descendant | Follows its existing scope | Follows its own segment and document order | Follows its own segment and document order |
 | Active outer item that is a native key-conflict element | Preserves the element's native key behavior | Makes the next outer item eligible, then follows normal sequential and segment order | Makes the previous outer item eligible, then follows normal sequential and segment order |
 
@@ -1325,13 +1325,13 @@ Scope ownership and exclusion are determined before the `itemcontrols` filter:
 5. A native key-conflict control associated with the active item retains its native behavior. Tab and Shift+Tab move through the active item's associated controls without exposing controls associated with inactive items.
 6. If the active outer item is itself a native key-conflict element, the existing escape behavior takes priority over inactive-item filtering. Tab or Shift+Tab makes the adjacent outer item eligible, then follows normal sequential and segment order. Independently scoped or top-layer content between the two outer items retains precedence. If focus reaches the adjacent outer item, it becomes active.
 
-Entering an independent nested focusgroup or top-layer segment does not change the enclosing focusgroup's active outer item.
+Focus inside an independent nested focusgroup or top-layer segment is not on an outer item or one of its associated controls, so the enclosing `itemcontrols` owner has no active outer item.
 
 ### Active-item invalidation
 
 If the outer item that currently holds focus is removed, hidden, disabled, made inert, or otherwise stops being an eligible outer item, `itemcontrols` does not move focus on its own; focus disposition follows the underlying HTML rules. Because activity is derived from focus, the active outer item is simply whichever eligible outer item contains focus afterward, and any last-focused memory that referred to the removed item is cleared.
 
-If focus lands on a descendant of another eligible outer item, that item is active. If focus leaves every outer item, no item is active until the next directional or sequential entry operation selects one. Controls owned by the removed item are no longer exposed through the `itemcontrols` extension. Independently scoped, opted-out, and top-layer descendants retain their existing behavior.
+If focus lands on another eligible outer item or one of its associated controls, that item is active. Otherwise, no item is active until focus reaches an outer item or associated control. Controls owned by the removed item are no longer exposed through the `itemcontrols` extension. Independently scoped, opted-out, and top-layer descendants retain their existing behavior.
 
 ### Associated-control mutations
 
