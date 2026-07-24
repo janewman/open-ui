@@ -149,7 +149,7 @@ Minimum role application (container and children): User agents apply the minimum
 Choosing your markup (`focusgroup` never overrides native semantics): the mapping above is additive. `focusgroup` supplies a role only when a generic container lacks one; it doesn't replace the role of a native element or an explicit `role`. This keeps a behavior token from turning a `<ul>`, `<nav>`, or `<table>` into a `menubar`, `grid`, etc. So `<ul focusgroup="menubar">` doesn't expose a `menubar`; the `<ul>` keeps its `list` role and its `<li>` children keep their `listitem` role. Choose the markup that fits your content:
 
 - **Keep semantic HTML when it carries meaning:** a real list, in-page navigation links, or native form controls with semantics worth preserving. Author the composite ARIA roles yourself (e.g. `role="menubar"` on the container and `role="none"` on each `<li>` wrapper, plus item roles); `focusgroup` won't override them and adds only the keyboard navigation.
-- **Use a generic container for a widget with no meaningful native element:** an application menubar, toolbar, or listbox built from a `<div>` and `<button>`s. `focusgroup` supplies the composite role, avoiding hand-authored `role` and `role="none"` boilerplate.
+- **Use a generic container for a widget with no meaningful native element:** an application menubar, toolbar, or listbox built from a `<div>` and `<button>`s. `focusgroup` supplies the composite role and compatible button item roles, avoiding hand-authored `role` and `role="none"` boilerplate.
 
 With either approach, `focusgroup`'s navigation and role mapping require no script; only the widget's actions and state (toggling `aria-selected`, showing a panel, running a command) need author code.
 
@@ -166,9 +166,9 @@ For example, a set of action links can stay a real list of links and still gain 
 
 Because the `<ul>`, `<li>`, and `<a>` are non-generic, you should explicitly provide the `role="toolbar"` and `role="none"`. In this example, the links keep their meaningful native role and `focusgroup` is used just to provide the directional focus navigation.
 
-Child role inference likewise only occurs when: (1) the container role was supplied via the behavior's minimum role mapping (not explicit/native), (2) the child lacks an explicit role, and (3) the child itself is otherwise generic or less specific than the inferred role. Most native interactive elements (links, inputs, etc.) or anything with an explicit/non-generic role are never overwritten.
+Child role inference likewise only occurs when: (1) the container role was supplied via the behavior's minimum role mapping (not explicit/native), (2) the child lacks an explicit role, and (3) the child itself is otherwise generic or less specific than the inferred role. Most native interactive elements (links, inputs, etc.) and anything with an explicit/non-generic role are never overwritten.
 
-The `<button>` element is an exception only for compatible composite widget item roles that ARIA-in-HTML permits on `<button>`, such as `tab`, `radio`, and the `menuitem` variants. Child role inference must never apply a structural role, such as `article`, to a button or popup button. Behaviors with no inferred child role skip the exception entirely. A `<button>` inside a `focusgroup="tablist"` container therefore receives the inferred `tab` role, and a `<button>` inside `focusgroup="menu"` receives `menuitem`.
+The [ARIA in HTML specification](https://www.w3.org/TR/html-aria/#docconformance) defines which ARIA roles authors may use on each HTML element. Its [`button` entry](https://www.w3.org/TR/html-aria/#el-button) lists roles including `tab`, `radio`, the `menuitem` variants, and `gridcell` (currently marked there as a proposed addition). The focusgroup button exception follows that per-element list: it never infers a role that the specification does not allow on `<button>`, such as `article` or `row`.
 
 V1 linear focusgroup behavior tokens (APG alignment and minimum roles). All six produce the same linear navigation semantics — only semantic expectations, child inference, and default modifiers differ. The V2 `feed` row maps to the ARIA feed structure, and the V2 grid row is retained for the detailed grid design below:
 
@@ -204,7 +204,7 @@ For example:
 2. Explicit container `role` identical to minimum role: keep as-is.
 3. Explicit compatible composite `role`: keep explicit role; behavior navigation still activates.
 4. Explicit incompatible `role` (e.g., `button`): UA MAY activate an author warning.
-5. Child role inference only runs when: (a) container role came from behavior mapping, (b) descendant is managed (not opted-out), (c) behavior defines an inferred child role, (d) descendant lacks explicit `role`, (e) inference would not replace richer native semantics — with the exception of `<button>`, which is eligible for inference because it is the dominant building block for composite widget items. Other native interactive elements (links, inputs, etc.) retain their native semantics, so an inferred, minimum role never overrides an explicit role.
+5. Child role inference only runs when: (a) container role came from behavior mapping, (b) descendant is managed (not opted-out), (c) behavior defines an inferred child role, (d) descendant lacks explicit `role`, and (e) inference would not replace non-generic native semantics. The exception is `<button>`, which is eligible when the inferred role appears in the [ARIA in HTML `button` entry](https://www.w3.org/TR/html-aria/#el-button). Other native interactive elements retain their native semantics.
 6. Inference never upgrades variant types (e.g., `menuitemcheckbox` vs `menuitemradio`) — authors must specify those explicitly.
 
 This approach separates behavioral intent (token) from accessibility semantics (minimum role mapping) and addresses concerns about reusing ARIA role strings directly as activation tokens.
@@ -244,7 +244,7 @@ behavior is decoupled from selection ("manual tab activation"):
 ```
 
 What to notice:
-- The `<button>` elements receive the inferred `tab` role because `<button>` is eligible for child role inference when inside a `focusgroup="tablist"` container.
+- The `<button>` elements receive the inferred `tab` role because `<button>` is eligible for compatible widget-item role inference inside a `focusgroup="tablist"` container.
 - The `focusgroupstart` attribute on the selected tab determines which tab receives focus when entering the focusgroup.
    The `nomemory` value [prevents the focusgroup from remembering the last focused tab](#disabling-focusgroup-memory) so
    that focus will always go to the tab with `focusgroupstart` on re-entry regardless of which element was
@@ -290,7 +290,7 @@ Both `menuitem`s in the `menubar` ("Font" and "Size") have popover `menu`s.
 ```
 
 What to notice:
-- The container roles are supplied by the behavior tokens: the generic `<div focusgroup="menubar">` is exposed as a `menubar` and each `<div focusgroup="menu">` as a `menu` (no explicit `role` needed). The plain `<button>`s are inferred as `menuitem`s, while the `menuitemradio` items keep their explicit roles because [inference never upgrades role variants](#behavior--role-mapping-and-precedence). A generic container suits an application menubar with no meaningful native element; see [choosing your markup](#supported-behaviors) above for when to keep semantic HTML instead.
+- The container roles are supplied by the behavior tokens: the generic `<div focusgroup="menubar">` is exposed as a `menubar` and each `<div focusgroup="menu">` as a `menu` (no explicit container `role` needed). Plain `<button>`s receive the inferred `menuitem` role, while `menuitemradio` items keep their explicit roles because [inference never upgrades role variants](#behavior--role-mapping-and-precedence). A generic container suits an application menubar with no meaningful native element; see [choosing your markup](#supported-behaviors) above for when to keep semantic HTML instead.
 - `focusgroup` declarations can be nested inside of other focusgroups. When a nested focusgroup
    is declared on an element, it creates a new focusgroup and [opts-out](#opting-out) of its
    ancestor focusgroup.
@@ -341,7 +341,7 @@ Interactions with explicit `role` vs behavior token mapping; also see [Behavior 
 </div>
 ```
 What to notice:
-- In `#one`, the generic `<div>` has no explicit `role`, so the `menu` token supplies the container `menu` role via the [minimum role mapping](#supported-behaviors). Because that container role came from the mapping, the `<button>` elements without explicit roles (Bold, Underline) are inferred as `menuitem`; `<button>` is eligible for child role inference because it is the most common building block for composite widget items. The explicit `menuitemcheckbox` (Italics) is unchanged. (Had `#one` been a non-generic element such as `<nav>` or `<ul>`, the mapping would be skipped, and with it the child inference; see [choosing your markup](#supported-behaviors).)
+- In `#one`, the generic `<div>` has no explicit `role`, so the `menu` token supplies the container `menu` role via the [minimum role mapping](#supported-behaviors). The plain buttons (Bold and Underline) receive the inferred `menuitem` role; the explicit `menuitemcheckbox` (Italics) is unchanged. (Had `#one` been a non-generic element such as `<nav>` or `<ul>`, the container mapping would be skipped, and with it child inference; see [choosing your markup](#supported-behaviors).)
 - Inference skips ambiguity: it doesn't guess a variant (`menuitemradio` vs `menuitemcheckbox`).
 - In `#one`, the explicit `inline` overrides the `menu` behavior token's default `block` axis restriction, while `wrap` is still applied from `menu`'s [default modifiers](#default-modifiers).
 - In `#two`, the explicit container `role="toolbar"` overrides the behavior token `radiogroup`; no radio inference occurs (tokens only supply navigation behavior).
@@ -1120,7 +1120,7 @@ Example:
 - The outer `div[focusgroup="menubar"]` defines one `focusgroup`; its `Insert` menuitem participates in the menubar's arrow navigation.
 - The `div[focusgroup="menu"]` for **Insert** creates an independent `focusgroup` that [opts out](#opting-out) of the menubar, so its `Image` and `Table` menuitems are navigated separately and aren't part of the menubar's arrow navigation.
 - The innermost `div[focusgroup="menu"]` (the **Table** submenu) defines yet another independent `focusgroup`, likewise not part of its ancestor menu's `focusgroup`; its menuitems participate only in that deepest scope.
-- Within each independent scope, `focusgroup` supplies the `menubar`/`menu` role on the generic `<div>` and infers `menuitem` on its `<button>` children.
+- Within each independent scope, `focusgroup` supplies the `menubar`/`menu` role on the generic `<div>` containers and infers `menuitem` on the plain `<button>` children.
 
 ### Top layer elements
 
@@ -1598,7 +1598,7 @@ When articles are inserted, removed, hidden, disabled, or made inert, a `feed` f
 ## Authoring guidance
 1. Place the behavior token first for readability: `focusgroup="tablist"`, `focusgroup="toolbar wrap"`. Order is not significant, but a consistent convention helps readers.
 2. Rely on [default modifiers](#default-modifiers) when possible — e.g., `focusgroup="tablist"` already implies `inline wrap`. Only add explicit modifiers to override defaults or add behaviors the token doesn't supply.
-3. Omit common child roles unless you need a variant (checkbox / radio menu items, mixed controls, etc.). `<button>` elements receive child role inference automatically.
+3. Omit common child roles on generic descendants and compatible `<button>` items when the behavior defines child inference. Specify explicit roles for variants such as checkbox or radio menu items. Other native interactive elements retain their native semantics.
 4. For detailed precedence (mismatches, inference limits, overrides) see [Behavior → role mapping and precedence](#behavior--role-mapping-and-precedence).
 5. Add `itemcontrols` to a behavior when each item contains nested controls that should stay out of directional navigation. Mark those controls with `focusgroup="none"`; only controls associated with the active item participate in sequential focus navigation.
 6. Use generic containers with `focusgroup="feed"` to let the behavior infer the `feed` and `article` roles. Include `aria-labelledby`, `aria-posinset`, and `aria-setsize` on each article per the [APG feed pattern](https://www.w3.org/WAI/ARIA/apg/patterns/feed/). Mark nested controls with `focusgroup="none"`; `feed` implies `itemcontrols`, so only controls associated with the active item participate in sequential focus navigation.
